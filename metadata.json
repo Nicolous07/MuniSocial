@@ -1,0 +1,6 @@
+{
+  "name": "MuniSocial",
+  "description": "Connect. Create. Inspire. Powered by AI. Next-generation AI social network platform by Municryptrix.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
