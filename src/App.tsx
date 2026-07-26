@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import muniLogo from './assets/images/munisocial_logo_1785063397683.jpg';
 import { Header } from './components/Header';
 import { SidebarNav } from './components/SidebarNav';
 import { HomeFeedView } from './components/HomeFeedView';
@@ -48,8 +49,26 @@ import {
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('feed');
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [isDarkMode] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Initial Instagram-style boot splash loading screen state
+  const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
+  const [isSplashVisible, setIsSplashVisible] = useState<boolean>(true);
+
+  useEffect(() => {
+    const timer1 = setTimeout(() => {
+      setIsLoadingSplash(false);
+    }, 1800);
+    const timer2 = setTimeout(() => {
+      setIsSplashVisible(false);
+    }, 2300);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
 
   // Sidebar collapse & mobile menu states
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -84,17 +103,55 @@ export default function App() {
   });
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 pb-16 md:pb-0 ${
-      isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
-    }`}>
+    <div className="min-h-screen flex flex-col font-sans transition-colors duration-200 pb-16 md:pb-0 bg-slate-950 text-slate-100 relative">
       
+      {/* INSTAGRAM-STYLE APP BOOT SPLASH SCREEN */}
+      {isSplashVisible && (
+        <div className={`fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-between py-12 transition-opacity duration-500 select-none ${
+          isLoadingSplash ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}>
+          {/* Top spacer */}
+          <div className="w-full"></div>
+
+          {/* Center Logo & Animated Pulse */}
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-3xl p-1 bg-gradient-to-tr from-cyan-500 via-indigo-600 to-pink-500 shadow-2xl shadow-indigo-500/40 animate-pulse">
+              <img 
+                src={muniLogo} 
+                alt="MuniSocial Logo" 
+                referrerPolicy="no-referrer"
+                className="w-full h-full rounded-[22px] object-cover shadow-inner" 
+              />
+              <div className="absolute -inset-3 bg-indigo-500/20 rounded-3xl blur-2xl -z-10 animate-ping opacity-40"></div>
+            </div>
+            <div className="text-center">
+              <h1 className="font-heading font-black text-2xl sm:text-3xl tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">
+                MuniSocial
+              </h1>
+              <p className="text-[10px] sm:text-xs text-slate-400 font-semibold tracking-widest mt-1">
+                CONNECT. CREATE. INSPIRE.
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom Brand Tag (Instagram style 'from MUNICRYPTRIX AI') */}
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-slate-500 font-bold">from</span>
+            <div className="flex items-center gap-1.5 font-bold text-xs text-slate-200">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+              <span className="tracking-wider text-indigo-300 font-mono">MUNICRYPTRIX AI</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Bar */}
       <Header 
         currentView={currentView}
         onSelectView={setCurrentView}
         user={CURRENT_USER}
-        isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        isDarkMode={true}
+        onToggleTheme={() => {}}
         onOpenCreate={() => setIsCreateOpen(true)}
         onToggleAiDrawer={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
         isAiDrawerOpen={isAiDrawerOpen}

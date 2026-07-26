@@ -62,11 +62,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         {/* Toggle Collapse Header Button */}
         <div className={`pb-3 mb-2 border-b flex items-center justify-between ${
           collapsed ? 'px-1 justify-center' : 'px-3'
-        } ${isDarkMode ? 'border-slate-800/80 text-slate-400' : 'border-slate-200 text-slate-600'}`}>
+        } ${isDarkMode ? 'border-slate-800/80 text-slate-400' : 'border-slate-200 text-slate-800'}`}>
           {!collapsed && (
-            <div className="text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
+            <div className="text-[10px] font-extrabold tracking-widest uppercase flex items-center gap-1">
               <span>Main Ecosystem</span>
-              <span className="flex items-center gap-1 text-indigo-500 font-mono">
+              <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-mono">
                 <Zap className="w-3 h-3 animate-bounce" /> 1.2B
               </span>
             </div>
@@ -78,11 +78,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               className={`p-1.5 rounded-xl border transition-all ${
                 isDarkMode 
                   ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300' 
-                  : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700'
+                  : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-900'
               }`}
               title={collapsed ? "Expand Sidebar (Open)" : "Collapse Sidebar (Closed)"}
             >
-              {collapsed ? <PanelLeftOpen className="w-4 h-4 text-indigo-400" /> : <PanelLeftClose className="w-4 h-4 text-indigo-400" />}
+              {collapsed ? <PanelLeftOpen className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> : <PanelLeftClose className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />}
             </button>
           )}
         </div>
@@ -100,8 +100,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 onSelectView(item.id);
                 if (onCloseMobile) onCloseMobile();
               }}
-              title={collapsed ? `${item.label} (${item.badge})` : undefined}
-              className={`w-full flex items-center rounded-2xl text-xs font-semibold transition-all group ${
+              title={collapsed ? item.label : undefined}
+              className={`w-full flex items-center rounded-2xl text-xs font-bold transition-all group ${
                 collapsed 
                   ? 'justify-center p-3' 
                   : 'justify-between px-3.5 py-2.5'
@@ -110,59 +110,21 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 ring-1 ring-indigo-400/30'
                   : isDarkMode
                     ? 'hover:bg-slate-900/80 text-slate-300 hover:text-white'
-                    : 'hover:bg-slate-200/80 text-slate-700 hover:text-slate-900'
+                    : 'hover:bg-slate-200/80 text-slate-900 hover:text-black'
               }`}
             >
               <div className="flex items-center gap-3">
                 <Icon className={`w-4.5 h-4.5 transition-transform group-hover:scale-110 ${
-                  isActive ? 'text-white' : 'text-indigo-500 dark:text-indigo-400'
+                  isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'
                 }`} />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span className={isActive ? 'text-white' : 'text-slate-900 dark:text-slate-200'}>{item.label}</span>}
               </div>
-              
-              {!collapsed && (
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                  isActive 
-                    ? 'bg-white/20 text-white' 
-                    : isDarkMode 
-                      ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
-                      : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
             </button>
           );
         })}
       </div>
 
-      {/* MuniAI Pro Upgrade / Status Card (When Expanded) */}
-      {!collapsed && (
-        <div className={`mt-6 p-4 rounded-2xl border relative overflow-hidden transition-all ${
-          isDarkMode 
-            ? 'bg-gradient-to-b from-indigo-950/40 via-purple-950/20 to-slate-900 border-indigo-500/30 text-slate-200' 
-            : 'bg-gradient-to-b from-indigo-50 via-purple-50 to-white border-indigo-200 text-slate-800 shadow-sm'
-        }`}>
-          <div className="absolute -top-6 -right-6 w-20 h-20 bg-indigo-500/20 rounded-full blur-xl"></div>
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-            <span className="font-heading font-bold text-xs text-indigo-600 dark:text-indigo-400">MuniSocial Global</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
-            Powered by Municryptrix enterprise AI infrastructure. Zero friction, total privacy.
-          </p>
-          <button 
-            id="sidebar-upgrade-btn"
-            onClick={() => {
-              onSelectView('creator-studio');
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className="w-full py-1.5 px-3 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 text-[11px] font-bold transition-all text-center flex items-center justify-center gap-1.5"
-          >
-            <Globe className="w-3.5 h-3.5" /> Creator Monetization Active
-          </button>
-        </div>
-      )}
+
     </div>
   );
 

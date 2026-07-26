@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import muniLogo from '../assets/images/munisocial_logo_1785063397683.jpg';
 import { 
   X, 
   KeyRound, 
@@ -44,8 +45,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/30 flex items-center justify-center border border-indigo-500/30">
-              <ShieldCheck className="w-5 h-5 text-indigo-400" />
+            <div className="w-9 h-9 rounded-xl bg-indigo-600/30 flex items-center justify-center border border-indigo-500/30 overflow-hidden">
+              <img src={muniLogo} alt="MuniSocial" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
             </div>
             <div>
               <h2 className="font-heading font-extrabold text-base">MuniSocial Security Auth</h2>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   X, 
   Send, 
@@ -10,7 +10,8 @@ import {
   CheckCircle2, 
   Loader2, 
   Copy,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 
 interface MuniAIAssistantDrawerProps {
@@ -45,6 +46,39 @@ export const MuniAIAssistantDrawer: React.FC<MuniAIAssistantDrawerProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Auto-hide drawer after 30 seconds of inactivity
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        onClose();
+      }, 30000); // 30 seconds inactivity
+    };
+
+    resetTimer();
+
+    const handleUserActivity = () => {
+      resetTimer();
+    };
+
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('touchstart', handleUserActivity);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -129,6 +163,9 @@ export const MuniAIAssistantDrawer: React.FC<MuniAIAssistantDrawerProps> = ({
                 <span>MuniAI Assistant</span>
                 <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.2 rounded-full font-mono">
                   Gemini 3.6
+                </span>
+                <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.2 rounded-full font-mono flex items-center gap-0.5">
+                  <Clock className="w-2.5 h-2.5" /> Auto-close 30s
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">Powered by Municryptrix Intelligence</p>

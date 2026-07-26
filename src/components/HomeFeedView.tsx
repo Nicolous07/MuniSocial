@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Heart, 
   MessageCircle, 
@@ -63,6 +63,49 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
     { id: '2', sender: 'MuniAI Copilot', avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80', text: 'MuniAI is standing by to help draft responses or generate content.', time: '10:43 AM' }
   ]);
 
+  const quickChatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-close floating quick chat when clicking outside OR after 30 seconds of inactivity
+  useEffect(() => {
+    if (!isQuickChatOpen) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setIsQuickChatOpen(false);
+      }, 30000); // 30 seconds auto-hide
+    };
+
+    resetTimer();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (quickChatContainerRef.current && !quickChatContainerRef.current.contains(event.target as Node)) {
+        setIsQuickChatOpen(false);
+      }
+    };
+
+    const handleUserActivity = () => {
+      resetTimer();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('touchstart', handleUserActivity);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+    };
+  }, [isQuickChatOpen]);
+
   const toggleLike = (postId: string) => {
     setLikedPostIds(prev => ({ ...prev, [postId]: !prev[postId] }));
   };
@@ -118,14 +161,14 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
         <section className={`p-4 rounded-3xl border transition-all ${
           isDarkMode 
             ? 'bg-slate-900/80 border-slate-800 text-white' 
-            : 'bg-white border-slate-200/90 text-slate-900 shadow-sm'
+            : 'bg-white border-slate-200/90 text-slate-950 shadow-sm'
         }`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-heading font-bold text-xs tracking-wider uppercase text-slate-400 dark:text-slate-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+            <h3 className="font-heading font-extrabold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>Stories & Moments</span>
             </h3>
-            <span className="text-[11px] text-indigo-500 dark:text-indigo-400 font-mono">Real-time</span>
+            <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-mono font-bold">Real-time</span>
           </div>
 
           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
@@ -140,7 +183,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                   +
                 </div>
               </div>
-              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Add Story</span>
+              <span className="text-[11px] font-bold text-slate-900 dark:text-slate-300">Add Story</span>
             </button>
 
             {/* Friend Stories */}
@@ -155,7 +198,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                 } group-hover:scale-105 transition-transform`}>
                   <img src={s.author.avatar} alt={s.author.name} className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-slate-950" />
                 </div>
-                <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate w-16 text-center">
+                <span className="text-[11px] font-bold text-slate-900 dark:text-slate-300 truncate w-16 text-center">
                   {s.author.name.split(' ')[0]}
                 </span>
               </button>
@@ -175,11 +218,11 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
             className={`flex-1 text-left px-4 py-2.5 rounded-2xl border text-xs transition-colors flex items-center justify-between ${
               isDarkMode 
                 ? 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200' 
-                : 'bg-slate-100/90 border-slate-200 text-slate-600 hover:text-slate-900'
+                : 'bg-slate-100/90 border-slate-200 text-slate-900 hover:text-black font-semibold'
             }`}
           >
             <span>What's on your mind, {user.name.split(' ')[0]}? Share with MuniAI...</span>
-            <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+            <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           </button>
         </div>
 
@@ -203,22 +246,22 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                     <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-indigo-500/20" />
                     <div>
                       <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
-                        <span className="text-slate-900 dark:text-white">{post.author.name}</span>
-                        {post.author.verified && <ShieldCheck className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />}
+                        <span className="text-slate-950 dark:text-white">{post.author.name}</span>
+                        {post.author.verified && <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
                         {post.author.proBadge && (
-                          <span className="px-1.5 py-0.2 text-[9px] font-mono bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 rounded border border-indigo-500/30">
+                          <span className="px-1.5 py-0.2 text-[9px] font-mono bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-500/30 font-bold">
                             PRO
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-400 font-medium">
                         <span>@{post.author.username}</span>
                         <span>•</span>
                         <span>{post.createdAt}</span>
                         {post.aiTopic && (
                           <>
                             <span>•</span>
-                            <span className="text-indigo-600 dark:text-indigo-400 font-mono text-[10px]">{post.aiTopic}</span>
+                            <span className="text-indigo-700 dark:text-indigo-400 font-mono text-[10px] font-bold">{post.aiTopic}</span>
                           </>
                         )}
                       </div>
@@ -227,11 +270,11 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 
                   <div className="flex items-center gap-2">
                     {post.aiScore && (
-                      <span className="hidden sm:flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                        <Flame className="w-3 h-3 text-indigo-500" /> AI Score {post.aiScore}
+                      <span className="hidden sm:flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20 font-bold">
+                        <Flame className="w-3 h-3 text-indigo-600 dark:text-indigo-400" /> AI Score {post.aiScore}
                       </span>
                     )}
-                    <button className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <button className="p-1.5 text-slate-500 hover:text-slate-950 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </div>
@@ -239,7 +282,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 
                 {/* Post Body Content */}
                 <div className="text-xs sm:text-sm leading-relaxed mb-4 space-y-3">
-                  <p className="whitespace-pre-line text-slate-800 dark:text-slate-100">{post.content}</p>
+                  <p className="whitespace-pre-line text-slate-950 dark:text-slate-100 font-normal">{post.content}</p>
 
                   {/* Thread Sequence rendered */}
                   {post.type === 'thread' && post.threadSequence && (
@@ -567,8 +610,78 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
         </div>
       )}
 
-      {/* FLOATING CHAT BUTTON (Bottom Right) */}
-      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
+      {/* FLOATING CHAT WIDGET CONTAINER WITH AUTO-CLOSE REF */}
+      <div ref={quickChatContainerRef} className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
+        {/* FLOATING QUICK CHAT DRAWER / POPOVER */}
+        {isQuickChatOpen && (
+          <div className="mb-3 w-80 sm:w-96 rounded-3xl border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom duration-200 bg-slate-950 border-slate-800 text-white">
+            {/* Quick Chat Header */}
+            <div className="p-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                <span className="font-heading font-bold text-xs">MuniChat Direct</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/20 font-mono">Live</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/30 text-amber-200 border border-amber-400/30 font-mono">Auto 30s</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => {
+                    setIsQuickChatOpen(false);
+                    onSelectView('messages');
+                  }}
+                  className="px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-[10px] font-bold"
+                >
+                  Full Screen
+                </button>
+                <button 
+                  onClick={() => setIsQuickChatOpen(false)}
+                  className="p-1 rounded-full hover:bg-white/20"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Chat Messages Body */}
+            <div className="p-3 space-y-2.5 max-h-64 overflow-y-auto text-xs">
+              {quickChatMessages.map((m) => (
+                <div key={m.id} className="flex gap-2 items-start">
+                  <img src={m.avatar} alt={m.sender} className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
+                  <div className={`p-2.5 rounded-2xl max-w-[80%] ${
+                    m.sender === user.name 
+                      ? 'bg-indigo-600 text-white ml-auto' 
+                      : 'bg-slate-900 border border-slate-800 text-slate-200'
+                  }`}>
+                    <div className="font-bold text-[10px] opacity-80 mb-0.5">{m.sender}</div>
+                    <p>{m.text}</p>
+                    <span className="text-[9px] opacity-60 block text-right mt-1 font-mono">{m.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Chat Input */}
+            <div className="p-2.5 border-t border-slate-800 flex items-center gap-2 bg-slate-900">
+              <input 
+                type="text" 
+                placeholder="Type quick message..." 
+                value={quickChatInput}
+                onChange={(e) => setQuickChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendQuickChat()}
+                className="flex-1 px-3 py-1.5 rounded-full border text-xs focus:outline-none focus:border-indigo-500 bg-slate-950 border-slate-800 text-white placeholder-slate-400"
+              />
+              <button 
+                onClick={handleSendQuickChat}
+                disabled={!quickChatInput.trim()}
+                className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 shadow-md"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FLOATING CHAT TRIGGER BUTTON */}
         <button
           id="floating-chat-button"
           onClick={() => setIsQuickChatOpen(!isQuickChatOpen)}
@@ -577,85 +690,11 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
         >
           <MessageSquare className="w-6 h-6 animate-pulse" />
           <span className="hidden md:inline font-bold text-xs pr-1">Direct Chat</span>
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-950 animate-bounce shadow-md">
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-950 animate-bounce shadow-md">
             2
           </span>
         </button>
       </div>
-
-      {/* FLOATING QUICK CHAT DRAWER / POPOVER */}
-      {isQuickChatOpen && (
-        <div className={`fixed bottom-36 right-4 sm:bottom-20 sm:right-6 z-50 w-80 sm:w-96 rounded-3xl border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom duration-200 ${
-          isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}>
-          {/* Quick Chat Header */}
-          <div className="p-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span className="font-heading font-bold text-xs">MuniChat Direct</span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/20 font-mono">Live</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => {
-                  setIsQuickChatOpen(false);
-                  onSelectView('messages');
-                }}
-                className="px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-[10px] font-bold"
-              >
-                Full Screen
-              </button>
-              <button 
-                onClick={() => setIsQuickChatOpen(false)}
-                className="p-1 rounded-full hover:bg-white/20"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Chat Messages Body */}
-          <div className="p-3 space-y-2.5 max-h-64 overflow-y-auto text-xs">
-            {quickChatMessages.map((m) => (
-              <div key={m.id} className="flex gap-2 items-start">
-                <img src={m.avatar} alt={m.sender} className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
-                <div className={`p-2.5 rounded-2xl max-w-[80%] ${
-                  m.sender === user.name 
-                    ? 'bg-indigo-600 text-white ml-auto' 
-                    : isDarkMode 
-                      ? 'bg-slate-900 border border-slate-800 text-slate-200' 
-                      : 'bg-slate-100 border border-slate-200 text-slate-800'
-                }`}>
-                  <div className="font-bold text-[10px] opacity-80 mb-0.5">{m.sender}</div>
-                  <p>{m.text}</p>
-                  <span className="text-[9px] opacity-60 block text-right mt-1 font-mono">{m.time}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Quick Chat Input */}
-          <div className="p-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-slate-50 dark:bg-slate-900">
-            <input 
-              type="text" 
-              placeholder="Type quick message..." 
-              value={quickChatInput}
-              onChange={(e) => setQuickChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendQuickChat()}
-              className={`flex-1 px-3 py-1.5 rounded-full border text-xs focus:outline-none focus:border-indigo-500 ${
-                isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-              }`}
-            />
-            <button 
-              onClick={handleSendQuickChat}
-              disabled={!quickChatInput.trim()}
-              className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 shadow-md"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
