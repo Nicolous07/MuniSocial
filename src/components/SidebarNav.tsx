@@ -141,28 +141,57 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
       {/* Mobile Slide-Over Drawer Navigation */}
       {isMobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden bg-slate-950/80 backdrop-blur-sm flex">
-          <div className={`w-72 max-w-[80vw] h-full p-4 flex flex-col justify-between border-r shadow-2xl animate-in slide-in-from-left duration-200 ${
+        <div className="fixed inset-0 z-50 md:hidden bg-slate-950/85 backdrop-blur-md flex animate-in fade-in duration-200">
+          <div className={`h-full p-4 flex flex-col justify-between border-r shadow-2xl transition-all duration-300 animate-in slide-in-from-left duration-200 ${
+            isCollapsed ? 'w-20' : 'w-72 max-w-[85vw]'
+          } ${
             isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            {/* Mobile Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
-                <span className="font-heading font-extrabold text-base bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-                  MuniSocial Navigation
-                </span>
+                <div className="relative w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 p-0.5 shadow-md flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                </div>
+                {!isCollapsed && (
+                  <span className="font-heading font-extrabold text-sm tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">
+                    MuniSocial
+                  </span>
+                )}
               </div>
-              <button 
-                onClick={onCloseMobile}
-                className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-1.5">
+                {onToggleCollapse && (
+                  <button 
+                    onClick={onToggleCollapse}
+                    className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-indigo-400 hover:text-white"
+                    title={isCollapsed ? "Expand Mobile Sidebar" : "Collapse Mobile Sidebar"}
+                  >
+                    {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                  </button>
+                )}
+                <button 
+                  onClick={onCloseMobile}
+                  className="p-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-colors"
+                  title="Close Navigation"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-4">
-              {renderNavContent(false)}
+            {/* Mobile Nav Content */}
+            <div className="flex-1 overflow-y-auto py-3 no-scrollbar">
+              {renderNavContent(isCollapsed)}
             </div>
+
+            {/* Mobile Bottom Quick Brand */}
+            {!isCollapsed && (
+              <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>MuniSocial Ecosystem</span>
+                <span className="text-indigo-400 font-bold">v3.5</span>
+              </div>
+            )}
           </div>
 
           <div className="flex-1" onClick={onCloseMobile}></div>

@@ -35,6 +35,7 @@ interface HomeFeedViewProps {
   onSelectView: (view: string) => void;
   onOpenCreate: () => void;
   onToggleAiDrawer: () => void;
+  isSplashVisible?: boolean;
 }
 
 export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
@@ -44,7 +45,8 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
   isDarkMode,
   onSelectView,
   onOpenCreate,
-  onToggleAiDrawer
+  onToggleAiDrawer,
+  isSplashVisible = false
 }) => {
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [likedPostIds, setLikedPostIds] = useState<Record<string, boolean>>({
@@ -610,91 +612,93 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
         </div>
       )}
 
-      {/* FLOATING CHAT WIDGET CONTAINER WITH AUTO-CLOSE REF */}
-      <div ref={quickChatContainerRef} className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
-        {/* FLOATING QUICK CHAT DRAWER / POPOVER */}
-        {isQuickChatOpen && (
-          <div className="mb-3 w-80 sm:w-96 rounded-3xl border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom duration-200 bg-slate-950 border-slate-800 text-white">
-            {/* Quick Chat Header */}
-            <div className="p-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                <span className="font-heading font-bold text-xs">MuniChat Direct</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/20 font-mono">Live</span>
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/30 text-amber-200 border border-amber-400/30 font-mono">Auto 30s</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => {
-                    setIsQuickChatOpen(false);
-                    onSelectView('messages');
-                  }}
-                  className="px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-[10px] font-bold"
-                >
-                  Full Screen
-                </button>
-                <button 
-                  onClick={() => setIsQuickChatOpen(false)}
-                  className="p-1 rounded-full hover:bg-white/20"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Chat Messages Body */}
-            <div className="p-3 space-y-2.5 max-h-64 overflow-y-auto text-xs">
-              {quickChatMessages.map((m) => (
-                <div key={m.id} className="flex gap-2 items-start">
-                  <img src={m.avatar} alt={m.sender} className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
-                  <div className={`p-2.5 rounded-2xl max-w-[80%] ${
-                    m.sender === user.name 
-                      ? 'bg-indigo-600 text-white ml-auto' 
-                      : 'bg-slate-900 border border-slate-800 text-slate-200'
-                  }`}>
-                    <div className="font-bold text-[10px] opacity-80 mb-0.5">{m.sender}</div>
-                    <p>{m.text}</p>
-                    <span className="text-[9px] opacity-60 block text-right mt-1 font-mono">{m.time}</span>
-                  </div>
+      {/* FLOATING CHAT WIDGET CONTAINER WITH AUTO-CLOSE REF - HIDE ON LOADING SPLASH */}
+      {!isSplashVisible && (
+        <div ref={quickChatContainerRef} className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
+          {/* FLOATING QUICK CHAT DRAWER / POPOVER */}
+          {isQuickChatOpen && (
+            <div className="mb-3 w-80 sm:w-96 rounded-3xl border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom duration-200 bg-slate-950 border-slate-800 text-white">
+              {/* Quick Chat Header */}
+              <div className="p-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="font-heading font-bold text-xs">MuniChat Direct</span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/20 font-mono">Live</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/30 text-amber-200 border border-amber-400/30 font-mono">Auto 30s</span>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => {
+                      setIsQuickChatOpen(false);
+                      onSelectView('messages');
+                    }}
+                    className="px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-[10px] font-bold"
+                  >
+                    Full Screen
+                  </button>
+                  <button 
+                    onClick={() => setIsQuickChatOpen(false)}
+                    className="p-1 rounded-full hover:bg-white/20"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-            {/* Quick Chat Input */}
-            <div className="p-2.5 border-t border-slate-800 flex items-center gap-2 bg-slate-900">
-              <input 
-                type="text" 
-                placeholder="Type quick message..." 
-                value={quickChatInput}
-                onChange={(e) => setQuickChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendQuickChat()}
-                className="flex-1 px-3 py-1.5 rounded-full border text-xs focus:outline-none focus:border-indigo-500 bg-slate-950 border-slate-800 text-white placeholder-slate-400"
-              />
-              <button 
-                onClick={handleSendQuickChat}
-                disabled={!quickChatInput.trim()}
-                className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 shadow-md"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
+              {/* Quick Chat Messages Body */}
+              <div className="p-3 space-y-2.5 max-h-64 overflow-y-auto text-xs">
+                {quickChatMessages.map((m) => (
+                  <div key={m.id} className="flex gap-2 items-start">
+                    <img src={m.avatar} alt={m.sender} className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
+                    <div className={`p-2.5 rounded-2xl max-w-[80%] ${
+                      m.sender === user.name 
+                        ? 'bg-indigo-600 text-white ml-auto' 
+                        : 'bg-slate-900 border border-slate-800 text-slate-200'
+                    }`}>
+                      <div className="font-bold text-[10px] opacity-80 mb-0.5">{m.sender}</div>
+                      <p>{m.text}</p>
+                      <span className="text-[9px] opacity-60 block text-right mt-1 font-mono">{m.time}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-        {/* FLOATING CHAT TRIGGER BUTTON */}
-        <button
-          id="floating-chat-button"
-          onClick={() => setIsQuickChatOpen(!isQuickChatOpen)}
-          className="p-3.5 sm:p-4 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white shadow-2xl shadow-indigo-600/50 hover:scale-110 active:scale-95 transition-all flex items-center gap-2 group relative border border-white/20"
-          title="Open Quick Chat / Direct Messages"
-        >
-          <MessageSquare className="w-6 h-6 animate-pulse" />
-          <span className="hidden md:inline font-bold text-xs pr-1">Direct Chat</span>
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-950 animate-bounce shadow-md">
-            2
-          </span>
-        </button>
-      </div>
+              {/* Quick Chat Input */}
+              <div className="p-2.5 border-t border-slate-800 flex items-center gap-2 bg-slate-900">
+                <input 
+                  type="text" 
+                  placeholder="Type quick message..." 
+                  value={quickChatInput}
+                  onChange={(e) => setQuickChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendQuickChat()}
+                  className="flex-1 px-3 py-1.5 rounded-full border text-xs focus:outline-none focus:border-indigo-500 bg-slate-950 border-slate-800 text-white placeholder-slate-400"
+                />
+                <button 
+                  onClick={handleSendQuickChat}
+                  disabled={!quickChatInput.trim()}
+                  className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 shadow-md"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* FLOATING CHAT TRIGGER BUTTON */}
+          <button
+            id="floating-chat-button"
+            onClick={() => setIsQuickChatOpen(!isQuickChatOpen)}
+            className="p-3.5 sm:p-4 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white shadow-2xl shadow-indigo-600/50 hover:scale-110 active:scale-95 transition-all flex items-center gap-2 group relative border border-white/20"
+            title="Open Quick Chat / Direct Messages"
+          >
+            <MessageSquare className="w-6 h-6 animate-pulse" />
+            <span className="hidden md:inline font-bold text-xs pr-1">Direct Chat</span>
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-950 animate-bounce shadow-md">
+              2
+            </span>
+          </button>
+        </div>
+      )}
 
     </div>
   );

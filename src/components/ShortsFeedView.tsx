@@ -17,20 +17,25 @@ import {
   Check,
   Bot,
   Play,
-  Pause
+  Pause,
+  Zap,
+  RotateCw
 } from 'lucide-react';
 import { SocialPost, UserProfile, PostComment } from '../types';
+import { FormattedText } from './FormattedText';
 
 interface ShortsFeedViewProps {
   posts: SocialPost[];
   user: UserProfile;
   isDarkMode: boolean;
+  onShowToast?: (title: string, message?: string, type?: 'success' | 'info' | 'alert' | 'error') => void;
 }
 
 export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
   posts,
   user,
-  isDarkMode
+  isDarkMode,
+  onShowToast
 }) => {
   // Extract posts suited for short reels
   const shortPosts = posts.filter(p => p.type === 'short_video' || p.videoDetails?.aspectRatio === '9:16' || (p.mediaUrls && p.mediaUrls.length > 0));
@@ -40,6 +45,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isAutoScroll, setIsAutoScroll] = useState(true); // TikTok auto-scroll feature!
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [bookmarkedMap, setBookmarkedMap] = useState<Record<string, boolean>>({});
   const [followedMap, setFollowedMap] = useState<Record<string, boolean>>({});
@@ -49,7 +55,6 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
   const [activeCommentsReel, setActiveCommentsReel] = useState<SocialPost | null>(null);
   const [commentText, setCommentText] = useState('');
   const [commentsMap, setCommentsMap] = useState<Record<string, PostComment[]>>({});
-  const [copiedToast, setCopiedToast] = useState(false);
   const [doubleTapHeart, setDoubleTapHeart] = useState<{ id: string; x: number; y: number } | null>(null);
 
   // Initialize comments from post
@@ -65,7 +70,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
             avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80',
             verified: true
           },
-          text: `✨ AI Insight: This reel highlights ${reel.videoDetails?.aiSummary || 'high engagement visual design on MuniSocial.'}`,
+          text: `✨ AI Insight: This reel highlights *${reel.videoDetails?.aiSummary || 'high engagement visual design on MuniSocial.'}*`,
           createdAt: 'Just now',
           likesCount: 124
         }
@@ -73,6 +78,38 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
     });
     setCommentsMap(initialComments);
   }, [posts]);
+
+  // Programmatic smooth scroll to reel index
+  const scrollToIndex = (index: number) => {
+    if (index < 0 || index >= reelPosts.length || !containerRef.current) return;
+    const height = containerRef.current.clientHeight;
+    containerRef.current.scrollTo({
+      top: index * height,
+      behavior: 'smooth'
+    });
+    setActiveIndex(index);
+  };
+
+  // TikTok-style Auto Scroll Timer (scrolls every 7 seconds if isAutoScroll and isPlaying are true)
+  useEffect(() => {
+    if (!isAutoScroll || !isPlaying) return;
+
+    const timer = setInterval(() => {
+      setActiveIndex(prevIndex => {
+        const nextIndex = (prevIndex + 1) % reelPosts.length;
+        if (containerRef.current) {
+          const height = containerRef.current.clientHeight;
+          containerRef.current.scrollTo({
+            top: nextIndex * height,
+            behavior: 'smooth'
+          });
+        }
+        return nextIndex;
+      });
+    }, 7000);
+
+    return () => clearInterval(timer);
+  }, [isAutoScroll, isPlaying, reelPosts.length]);
 
   // Handle vertical scroll snapping & index update
   const handleScroll = () => {
@@ -84,17 +121,6 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
         setActiveIndex(index);
       }
     }
-  };
-
-  // Programmatic smooth scroll to reel index
-  const scrollToIndex = (index: number) => {
-    if (index < 0 || index >= reelPosts.length || !containerRef.current) return;
-    const height = containerRef.current.clientHeight;
-    containerRef.current.scrollTo({
-      top: index * height,
-      behavior: 'smooth'
-    });
-    setActiveIndex(index);
   };
 
   // Keyboard navigation (ArrowUp & ArrowDown)
@@ -113,15 +139,27 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
   }, [activeIndex, reelPosts.length]);
 
   const toggleLike = (reelId: string) => {
-    setLikedMap(prev => ({ ...prev, [reelId]: !prev[reelId] }));
+    const isNowLiked = !likedMap[reelId];
+    setLikedMap(prev => ({ ...prev, [reelId]: isNowLiked }));
+    if (onShowToast) {
+      onShowToast(isNowLiked ? 'Liked Reel ❤️' : 'Unliked Reel', isNowLiked ? 'Added to your liked MuniShorts' : 'Removed from liked items', 'info');
+    }
   };
 
   const toggleBookmark = (reelId: string) => {
-    setBookmarkedMap(prev => ({ ...prev, [reelId]: !prev[reelId] }));
+    const isNowSaved = !bookmarkedMap[reelId];
+    setBookmarkedMap(prev => ({ ...prev, [reelId]: isNowSaved }));
+    if (onShowToast) {
+      onShowToast(isNowSaved ? 'Saved Reel 🔖' : 'Removed Bookmark', isNowSaved ? 'Saved to your library' : 'Removed from bookmarks', 'success');
+    }
   };
 
-  const toggleFollow = (authorId: string) => {
-    setFollowedMap(prev => ({ ...prev, [authorId]: !prev[authorId] }));
+  const toggleFollow = (authorId: string, authorName: string) => {
+    const isNowFollowed = !followedMap[authorId];
+    setFollowedMap(prev => ({ ...prev, [authorId]: isNowFollowed }));
+    if (onShowToast) {
+      onShowToast(isNowFollowed ? `Followed @${authorName}` : `Unfollowed @${authorName}`, isNowFollowed ? 'You will see more reels from this creator' : 'Unfollowed creator', 'info');
+    }
   };
 
   const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement>, reelId: string) => {
@@ -131,12 +169,16 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
     setDoubleTapHeart({ id: reelId, x, y });
     setLikedMap(prev => ({ ...prev, [reelId]: true }));
     setTimeout(() => setDoubleTapHeart(null), 800);
+    if (onShowToast) {
+      onShowToast('Liked Reel ❤️', 'Double tap heart like applied', 'info');
+    }
   };
 
   const handleShare = (reel: SocialPost) => {
     navigator.clipboard?.writeText?.(window.location.href);
-    setCopiedToast(true);
-    setTimeout(() => setCopiedToast(false), 2500);
+    if (onShowToast) {
+      onShowToast('Link Copied 🔗', 'MuniShort reel link copied to clipboard', 'success');
+    }
   };
 
   const handleAddComment = (reelId: string) => {
@@ -159,19 +201,14 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
       [reelId]: [newComment, ...(prev[reelId] || [])]
     }));
     setCommentText('');
+    if (onShowToast) {
+      onShowToast('Comment Posted', 'Your comment is now live on this reel', 'success');
+    }
   };
 
   return (
     <div className="max-w-md mx-auto py-2 px-2 h-[calc(100vh-5.5rem)] flex items-center justify-center relative">
       
-      {/* Toast Notification */}
-      {copiedToast && (
-        <div className="absolute top-4 z-50 px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-semibold shadow-xl flex items-center gap-2 animate-bounce">
-          <Check className="w-4 h-4" />
-          <span>Reel link copied to clipboard!</span>
-        </div>
-      )}
-
       {/* Main Snap Scroll Container */}
       <div className="relative w-full h-full max-h-[780px] rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950">
         
@@ -215,33 +252,38 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                 )}
 
                 {/* Top Header Bar Controls */}
-                <div className="relative z-10 p-4 flex items-center justify-between text-white">
-                  <div className="flex items-center gap-2">
-                    <span className="font-heading font-extrabold text-sm tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent">
-                      MuniShorts
+                <div className="relative z-10 p-3.5 flex items-center justify-between text-white">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-heading font-extrabold text-sm tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-200 to-pink-400 bg-clip-text text-transparent">
+                      MuniReels
                     </span>
                     <span className="px-2 py-0.5 text-[10px] font-mono bg-indigo-600/80 rounded-full border border-indigo-400/60 shadow-sm">
                       {index + 1} / {reelPosts.length}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setShowAiCaptions(!showAiCaptions)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-mono border transition-all flex items-center gap-1 ${
-                        showAiCaptions 
-                          ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-lg shadow-indigo-600/30' 
+                  <div className="flex items-center gap-1.5">
+                    {/* Auto Scroll Toggle Switch */}
+                    <button
+                      onClick={() => {
+                        const newState = !isAutoScroll;
+                        setIsAutoScroll(newState);
+                        if (onShowToast) onShowToast(newState ? 'Auto Scroll Enabled ⚡' : 'Auto Scroll Disabled', newState ? 'Reels will automatically advance every 7 seconds' : 'Manual scrolling mode active', 'info');
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
+                        isAutoScroll 
+                          ? 'bg-emerald-600/90 border-emerald-400 text-white shadow-lg shadow-emerald-600/30' 
                           : 'bg-slate-900/80 border-slate-700 text-slate-400'
                       }`}
-                      title="Toggle MuniAI Auto Captions"
+                      title="TikTok Auto-Scroll Feature"
                     >
-                      <Sparkles className="w-3 h-3 text-indigo-300" />
-                      <span>AI Captions</span>
+                      <Zap className={`w-3 h-3 ${isAutoScroll ? 'text-amber-300 animate-bounce' : 'text-slate-400'}`} />
+                      <span>{isAutoScroll ? 'Auto On' : 'Auto Off'}</span>
                     </button>
 
                     <button 
                       onClick={() => setIsMuted(!isMuted)}
-                      className="p-2 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-slate-800 transition-colors"
                       title={isMuted ? "Unmute Sound" : "Mute Sound"}
                     >
                       {isMuted ? <VolumeX className="w-4 h-4 text-pink-400" /> : <Volume2 className="w-4 h-4 text-indigo-300" />}
@@ -249,27 +291,13 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
 
                     <button 
                       onClick={() => setIsPlaying(!isPlaying)}
-                      className="p-2 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-full bg-slate-900/80 border border-slate-700 text-white hover:bg-slate-800 transition-colors"
                       title={isPlaying ? "Pause Reel" : "Play Reel"}
                     >
                       {isPlaying ? <Pause className="w-4 h-4 text-slate-200" /> : <Play className="w-4 h-4 text-emerald-400" />}
                     </button>
                   </div>
                 </div>
-
-                {/* Center Live AI Auto Captions Overlay */}
-                {showAiCaptions && (
-                  <div className="relative z-10 px-6 my-auto text-center pointer-events-none">
-                    <div className="inline-block px-4 py-2.5 rounded-2xl bg-slate-950/85 border border-indigo-500/50 backdrop-blur-md text-xs font-medium text-white shadow-2xl max-w-xs">
-                      <span className="text-indigo-400 font-mono font-bold mr-1.5 flex items-center justify-center gap-1">
-                        <Sparkles className="w-3 h-3 inline text-indigo-400" /> MuniAI Live Caption:
-                      </span>
-                      <p className="mt-1 text-slate-200 leading-snug">
-                        "{reel.videoDetails?.aiSummary || reel.content || 'Ultra-high bitrate 4K video reel with real-time AI audio processing.'}"
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 {/* Bottom Overlay Info & Right Side Actions */}
                 <div className="relative z-10 p-4 flex items-end justify-between gap-3 text-white">
@@ -292,7 +320,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                         </p>
                       </div>
                       <button 
-                        onClick={() => toggleFollow(reel.author.id)}
+                        onClick={() => toggleFollow(reel.author.id, reel.author.username)}
                         className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-md transition-all shrink-0 ${
                           isFollowed 
                             ? 'bg-slate-800 text-slate-300 border border-slate-700' 
@@ -392,7 +420,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                         onClick={() => scrollToIndex(index - 1)}
                         disabled={index === 0}
                         className="p-2 rounded-full bg-slate-900/90 text-white disabled:opacity-20 hover:bg-slate-800 transition-all border border-slate-700"
-                        title="Previous Reel (Key Up)"
+                        title="Previous Reel"
                       >
                         <ChevronUp className="w-4 h-4" />
                       </button>
@@ -400,7 +428,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                         onClick={() => scrollToIndex(index + 1)}
                         disabled={index === reelPosts.length - 1}
                         className="p-2 rounded-full bg-slate-900/90 text-white disabled:opacity-20 hover:bg-slate-800 transition-all border border-slate-700"
-                        title="Next Reel (Key Down)"
+                        title="Next Reel"
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
@@ -418,7 +446,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
         {/* Scroll Helper Hint floating at bottom center */}
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
           <div className="px-3 py-1 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] font-mono text-slate-300 flex items-center gap-1.5 backdrop-blur-md shadow-lg">
-            <span>Scroll ↑↓ or drag to switch reels</span>
+            <span>{isAutoScroll ? '⚡ TikTok Auto Scroll Active' : 'Scroll ↑↓ or drag to switch reels'}</span>
           </div>
         </div>
 
@@ -445,7 +473,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
               </button>
             </div>
 
-            {/* Comments List */}
+            {/* Comments List with Formatted Text */}
             <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[320px]">
               {(commentsMap[activeCommentsReel.id] || []).length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-6">No comments yet. Be the first to share your thoughts!</p>
@@ -459,7 +487,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                         {c.author.verified && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 inline" />}
                         <span className="text-[10px] text-slate-500 font-normal ml-auto">{c.createdAt}</span>
                       </div>
-                      <p className="text-slate-300 mt-1 leading-snug">{c.text}</p>
+                      <FormattedText text={c.text} className="text-slate-300 mt-1" />
                     </div>
                   </div>
                 ))
@@ -474,7 +502,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddComment(activeCommentsReel.id)}
-                  placeholder="Add a comment..."
+                  placeholder="Add a comment (*bold*, _italic_, `code`)..."
                   className="flex-1 bg-slate-950 border border-slate-700 rounded-full px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
                 <button 
@@ -487,10 +515,10 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
               </div>
 
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-                <span className="text-[10px] text-indigo-400 font-mono shrink-0 flex items-center gap-0.5">
-                  <Bot className="w-3 h-3 inline" /> MuniAI Reply:
+                <span className="text-[10px] text-slate-400 font-mono shrink-0 flex items-center gap-0.5">
+                  Quick Reply:
                 </span>
-                {['🔥 Epic reel!', 'Awesome visual effects! ✨', 'Super informative content! 🚀'].map((quick, qIdx) => (
+                {['🔥 *Epic reel!*', 'Awesome _visual effects!_ ✨', 'Super informative content! `4K HDR` 🚀'].map((quick, qIdx) => (
                   <button 
                     key={qIdx}
                     onClick={() => setCommentText(quick)}
@@ -509,3 +537,4 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
     </div>
   );
 };
+

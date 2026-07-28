@@ -1,0 +1,29 @@
+{
+  "entities": {
+    "users": {
+      "title": "users",
+      "description": "Registered user accounts",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastLoginAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "posts": {
+      "title": "posts",
+      "description": "User posts and created content",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string font" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["authorUid", "content"]
+    }
+  }
+}
