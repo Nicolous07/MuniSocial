@@ -298,6 +298,161 @@ export async function createDatabaseStory(story: Partial<Story>): Promise<void> 
   }
 }
 
+// Subscribe to Realtime Stories
+export function subscribeToStories(callback: (stories: Story[]) => void) {
+  const storiesQuery = query(collection(db, "stories"), orderBy("createdAt", "desc"), limit(30));
+  
+  return onSnapshot(storiesQuery, (snapshot) => {
+    const storyList: Story[] = [];
+    snapshot.forEach((docSnap) => {
+      storyList.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Story);
+    });
+    callback(storyList);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, "stories");
+  });
+}
+
+// Bookmark / Repost Post
+export async function toggleBookmarkInDb(postId: string, isBookmarked: boolean): Promise<void> {
+  const path = `posts/${postId}`;
+  try {
+    const postRef = doc(db, "posts", postId);
+    await updateDoc(postRef, {
+      bookmarksCount: increment(isBookmarked ? -1 : 1)
+    });
+
+    if (auth.currentUser?.uid) {
+      const userBookmarkRef = doc(db, `users/${auth.currentUser.uid}/bookmarks`, postId);
+      if (isBookmarked) {
+        await deleteDoc(userBookmarkRef);
+      } else {
+        await setDoc(userBookmarkRef, {
+          postId,
+          savedAt: new Date().toISOString()
+        });
+      }
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function toggleRepostInDb(postId: string, isReposted: boolean): Promise<void> {
+  const path = `posts/${postId}`;
+  try {
+    const postRef = doc(db, "posts", postId);
+    await updateDoc(postRef, {
+      repostsCount: increment(isReposted ? -1 : 1)
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+// User Profile Firestore Operations
+export async function fetchUserProfile(uid: string): Promise<UserProfile | null> {
+  const path = `users/${uid}`;
+  try {
+    const userSnap = await getDoc(doc(db, "users", uid));
+    if (userSnap.exists()) {
+      return { id: userSnap.id, ...userSnap.data() } as UserProfile;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
+}
+
+export async function updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
+  const path = `users/${uid}`;
+  try {
+    const userRef = doc(db, "users", uid);
+    await setDoc(userRef, {
+      ...updates,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function toggleFollowUser(targetUid: string, isFollowing: boolean): Promise<void> {
+  if (!auth.currentUser?.uid) return;
+  const currentUid = auth.currentUser.uid;
+  
+  try {
+    const followRef = doc(db, `users/${currentUid}/following`, targetUid);
+    const followerRef = doc(db, `users/${targetUid}/followers`, currentUid);
+    
+    if (isFollowing) {
+      await deleteDoc(followRef);
+      await deleteDoc(followerRef);
+      await updateDoc(doc(db, "users", currentUid), { followingCount: increment(-1) });
+      await updateDoc(doc(db, "users", targetUid), { followersCount: increment(-1) });
+    } else {
+      await setDoc(followRef, { uid: targetUid, followedAt: new Date().toISOString() });
+      await setDoc(followerRef, { uid: currentUid, followedAt: new Date().toISOString() });
+      await updateDoc(doc(db, "users", currentUid), { followingCount: increment(1) });
+      await updateDoc(doc(db, "users", targetUid), { followersCount: increment(1) });
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${targetUid}/followers`);
+  }
+}
+
+// Communities Firestore Operations
+export function subscribeToCommunities(callback: (communities: any[]) => void) {
+  const q = query(collection(db, "communities"), orderBy("membersCount", "desc"), limit(30));
+  return onSnapshot(q, (snapshot) => {
+    const list: any[] = [];
+    snapshot.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+    callback(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, "communities");
+  });
+}
+
+export async function createCommunityInDb(community: any): Promise<void> {
+  const path = "communities";
+  try {
+    await addDoc(collection(db, path), {
+      ...community,
+      createdAt: new Date().toISOString()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+// Marketplace Firestore Operations
+export function subscribeToMarketplaceItems(callback: (items: any[]) => void) {
+  const q = query(collection(db, "marketplace"), orderBy("createdAt", "desc"), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    const items: any[] = [];
+    snapshot.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+    callback(items);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, "marketplace");
+  });
+}
+
+export async function createMarketplaceItemInDb(item: any): Promise<void> {
+  const path = "marketplace";
+  try {
+    await addDoc(collection(db, path), {
+      ...item,
+      createdAt: new Date().toISOString()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
 // Paginated Feed Fetching for Infinite Scroll
 export async function fetchFeedPaginated(lastSnapshot?: QueryDocumentSnapshot<DocumentData>, pageSize: number = 10) {
   const path = "posts";

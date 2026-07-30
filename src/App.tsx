@@ -55,7 +55,12 @@ import {
   subscribeToRealtimePosts, 
   subscribeToChatMessages, 
   subscribeToNotifications,
-  sendChatMessage
+  subscribeToStories,
+  subscribeToCommunities,
+  subscribeToMarketplaceItems,
+  sendChatMessage,
+  createDatabasePost,
+  createDatabaseStory
 } from './lib/dbService';
 
 import { auth, onAuthStateChanged } from './lib/firebase';
@@ -155,6 +160,13 @@ export default function App() {
       if (user) {
         setIsAuthenticated(true);
         localStorage.setItem('munisocial_auth', 'true');
+        // Subscribe to user notifications
+        const unsubscribeNotifs = subscribeToNotifications(user.uid, (realtimeNotifs) => {
+          if (realtimeNotifs && realtimeNotifs.length > 0) {
+            setNotifications(realtimeNotifs);
+          }
+        });
+        return () => unsubscribeNotifs();
       }
     });
 
@@ -162,10 +174,42 @@ export default function App() {
     const unsubscribePosts = subscribeToRealtimePosts((realtimePosts) => {
       if (realtimePosts && realtimePosts.length > 0) {
         setPosts(prev => {
-          // Merge newly created DB posts while retaining initial structure
           const existingIds = new Set(realtimePosts.map(p => p.id));
           const remainingPrev = prev.filter(p => !existingIds.has(p.id));
           return [...realtimePosts, ...remainingPrev];
+        });
+      }
+    });
+
+    // Realtime Stories Listener
+    const unsubscribeStories = subscribeToStories((realtimeStories) => {
+      if (realtimeStories && realtimeStories.length > 0) {
+        setStories(prev => {
+          const existingIds = new Set(realtimeStories.map(s => s.id));
+          const remainingPrev = prev.filter(s => !existingIds.has(s.id));
+          return [...realtimeStories, ...remainingPrev];
+        });
+      }
+    });
+
+    // Realtime Communities Listener
+    const unsubscribeCommunities = subscribeToCommunities((realtimeCommunities) => {
+      if (realtimeCommunities && realtimeCommunities.length > 0) {
+        setCommunities(prev => {
+          const existingIds = new Set(realtimeCommunities.map(c => c.id));
+          const remainingPrev = prev.filter(c => !existingIds.has(c.id));
+          return [...realtimeCommunities, ...remainingPrev];
+        });
+      }
+    });
+
+    // Realtime Marketplace Items Listener
+    const unsubscribeMarketplace = subscribeToMarketplaceItems((realtimeMarketplace) => {
+      if (realtimeMarketplace && realtimeMarketplace.length > 0) {
+        setMarketplace(prev => {
+          const existingIds = new Set(realtimeMarketplace.map(m => m.id));
+          const remainingPrev = prev.filter(m => !existingIds.has(m.id));
+          return [...realtimeMarketplace, ...remainingPrev];
         });
       }
     });
@@ -184,6 +228,9 @@ export default function App() {
     return () => {
       unsubscribeAuth();
       unsubscribePosts();
+      unsubscribeStories();
+      unsubscribeCommunities();
+      unsubscribeMarketplace();
       unsubscribeChat();
     };
   }, []);
