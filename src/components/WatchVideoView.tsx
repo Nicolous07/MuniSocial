@@ -103,21 +103,33 @@ export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
           
           {/* Main Video Screen Frame */}
           <div className="relative rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video shadow-2xl group">
-            <img 
-              src={activeVideo.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'} 
-              alt="Video stream" 
-              className="w-full h-full object-cover"
-            />
-            
-            {/* Play Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-center justify-center">
-              <button 
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="w-20 h-20 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white flex items-center justify-center shadow-2xl shadow-indigo-600/50 group-hover:scale-110 transition-transform"
-              >
-                {isPlaying ? <Pause className="w-8 h-8 fill-white" /> : <Play className="w-8 h-8 fill-white ml-1" />}
-              </button>
-            </div>
+            {activeVideo.videoUrl || (activeVideo.mediaUrl && (activeVideo.mediaUrl.endsWith('.mp4') || activeVideo.mediaUrl.endsWith('.webm') || activeVideo.mediaUrl.includes('/uploads/video_'))) ? (
+              <video 
+                src={activeVideo.videoUrl || activeVideo.mediaUrl}
+                poster={activeVideo.thumbnailUrl || activeVideo.mediaUrls?.[0]}
+                controls
+                autoPlay={isPlaying}
+                className="w-full h-full object-contain bg-black"
+              />
+            ) : (
+              <>
+                <img 
+                  src={activeVideo.mediaUrls?.[0] || activeVideo.mediaUrl || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'} 
+                  alt="Video stream" 
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Play Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-center justify-center pointer-events-none">
+                  <button 
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    className="w-20 h-20 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white flex items-center justify-center shadow-2xl shadow-indigo-600/50 group-hover:scale-110 transition-transform pointer-events-auto"
+                  >
+                    {isPlaying ? <Pause className="w-8 h-8 fill-white" /> : <Play className="w-8 h-8 fill-white ml-1" />}
+                  </button>
+                </div>
+              </>
+            )}
 
             {/* Video Controls Overlay */}
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-white">

@@ -11,14 +11,18 @@ import {
   ShoppingBag, 
   Wand2, 
   Send,
-  Loader2
+  Loader2,
+  Upload,
+  CheckCircle2
 } from 'lucide-react';
-import { SocialPost, ContentType, UserProfile } from '../types';
+import { SocialPost, ContentType, UserProfile, Story } from '../types';
+import { uploadMediaFile, uploadVideoFile, createDatabasePost, createDatabaseStory } from '../lib/dbService';
 
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddPost: (post: SocialPost) => void;
+  onAddStory?: (story: Story) => void;
   user: UserProfile;
   isDarkMode: boolean;
 }
@@ -27,6 +31,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   isOpen,
   onClose,
   onAddPost,
+  onAddStory,
   user,
   isDarkMode,
 }) => {
@@ -35,6 +40,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [mediaUrl, setMediaUrl] = useState('');
   const [tags, setTags] = useState('MuniSocial, Tech, AI');
   const [isAiDrafting, setIsAiDrafting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
   
   // Custom type states
   const [pollQuestion, setPollQuestion] = useState('What technology will dominate 2026?');
@@ -44,6 +51,29 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [threadItems, setThreadItems] = useState(['1/3: Next-gen social architectures require zero latency.', '2/3: Server-side Gemini API calls protect keys safely.', '3/3: Join MuniSocial today!']);
 
   if (!isOpen) return null;
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const isVideo = file.type.startsWith('video/') || selectedType === 'short_video' || selectedType === 'long_video';
+      if (isVideo) {
+        const { url, post } = await uploadVideoFile(file, content || file.name, 'Shorts');
+        setMediaUrl(url);
+        setUploadedFileName(`🎥 ${file.name}`);
+        if (selectedType !== 'short_video' && selectedType !== 'long_video') {
+          setSelectedType('short_video');
+        }
+      } else {
+        const url = await uploadMediaFile(file);
+        setMediaUrl(url);
+        setUploadedFileName(file.name);
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleAiAutoDraft = async () => {
     setIsAiDrafting(true);
@@ -69,8 +99,28 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if ((selectedType as string) === 'story' && onAddStory) {
+      const newStory: Story = {
+        id: `st_${Date.now()}`,
+        author: {
+          name: user.name,
+          username: user.username,
+          avatar: user.avatar,
+        },
+        mediaUrl: mediaUrl || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+        type: 'image',
+        caption: content || '24h Ephemeral Story on MuniSocial',
+        hasUnseen: true,
+        createdAt: new Date().toISOString(),
+      };
+      await createDatabaseStory(newStory);
+      onAddStory(newStory);
+      onClose();
+      return;
+    }
 
     const newPost: SocialPost = {
       id: `post_${Date.now()}`,
@@ -83,7 +133,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       commentsCount: 0,
       sharesCount: 0,
       bookmarksCount: 0,
-      createdAt: 'Just now',
+      createdAt: new Date().toISOString(),
       tags: tags.split(',').map(t => t.trim()),
       isLiked: true,
       aiScore: 98,
@@ -124,11 +174,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       } : {})
     };
 
+    await createDatabasePost(newPost);
     onAddPost(newPost);
     onClose();
   };
 
   const contentTypes: { id: ContentType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'story' as any, label: '24h Story', icon: Sparkles },
     { id: 'text', label: 'Post', icon: FileText },
     { id: 'image', label: 'Photo/Carousel', icon: ImageIcon },
     { id: 'short_video', label: 'Reel/Short', icon: Video },
@@ -226,15 +278,59 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             />
           </div>
 
-          {/* Conditional Media URL input */}
-          {(selectedType === 'image' || selectedType === 'short_video' || selectedType === 'long_video' || selectedType === 'marketplace') && (
-            <div>
+          {/* Conditional Media URL or File Upload */}
+          {(selectedType === 'image' || selectedType === 'short_video' || selectedType === 'long_video' || selectedType === 'marketplace' || (selectedType as string) === 'story') && (
+            <div className="space-y-2">
               <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                Media URL (Unsplash or direct image/video link):
+                Upload Media or Provide URL:
               </label>
+
+              {/* Drag and Drop / File Input Box */}
+              <div 
+                className="border-2 border-dashed border-indigo-500/30 hover:border-indigo-500/60 rounded-2xl p-4 bg-slate-950/40 text-center transition-all cursor-pointer relative"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileUpload(e.dataTransfer.files[0]);
+                  }
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileUpload(e.target.files[0]);
+                    }
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                />
+
+                {isUploading ? (
+                  <div className="flex items-center justify-center gap-2 py-2 text-indigo-400">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-xs font-semibold">Uploading file to server...</span>
+                  </div>
+                ) : uploadedFileName ? (
+                  <div className="flex items-center justify-center gap-2 py-2 text-emerald-400 font-semibold text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Uploaded: {uploadedFileName}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 py-1 text-slate-400">
+                    <Upload className="w-5 h-5 text-indigo-400" />
+                    <span className="text-xs font-medium text-slate-300">
+                      Drag & drop image/video here, or <span className="text-indigo-400 underline">browse file</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500">Supports PNG, JPG, MP4, WEBM</span>
+                  </div>
+                )}
+              </div>
+
               <input
                 type="text"
-                placeholder="https://images.unsplash.com/..."
+                placeholder="Or paste image/video URL: https://..."
                 value={mediaUrl}
                 onChange={(e) => setMediaUrl(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"

@@ -1252,9 +1252,59 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <h2 className="font-heading font-extrabold text-xl">13. Security, Passkeys & Firewall</h2>
               <p className="text-xs text-slate-400">Passkey WebAuthn logs, 2FA enforcement, IP rate limiting, and connected sessions</p>
               
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs">
-                <div className="font-bold text-emerald-400">Passkey Authentication Mode: Active</div>
-                <p className="text-slate-400">Biometric hardware security tokens and FIDO2 keys enforced for all elevated Admin actions.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-sm">Passkey & Biometric WebAuthn</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Enforced</span>
+                  </div>
+                  <p className="text-slate-400">Hardware security tokens (YubiKey, TouchID, FaceID) required for all elevated Admin actions.</p>
+                  <button 
+                    onClick={() => notify('Security Audit', 'Passkey credentials verified successfully', 'success')} 
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors"
+                  >
+                    Test Passkey Authentication
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-sm">IP Rate Limiter & DDoS Shield</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Active (100 req/min)</span>
+                  </div>
+                  <p className="text-slate-400">Automatic IP throttling & cloud firewall defense against brute-force attacks.</p>
+                  <button 
+                    onClick={() => notify('Firewall Rules', 'Updated IP rate limiting policies', 'info')} 
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
+                  >
+                    Manage Firewall Rules
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <h3 className="font-bold text-sm text-white">Active Admin Sessions</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-white block">Chrome on macOS (Current Session)</span>
+                      <span className="text-[10px] font-mono text-slate-400">IP: 192.168.1.104 • San Francisco, CA</span>
+                    </div>
+                    <span className="text-emerald-400 font-bold text-[10px]">Active Now</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-white block">Safari on iOS (Passkey Auth)</span>
+                      <span className="text-[10px] font-mono text-slate-400">IP: 172.56.21.90 • Nairobi, KE</span>
+                    </div>
+                    <button 
+                      onClick={() => notify('Session Revoked', 'Remote admin session revoked successfully', 'info')} 
+                      className="text-rose-400 hover:text-rose-300 font-bold text-[11px]"
+                    >
+                      Revoke Access
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

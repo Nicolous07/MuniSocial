@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -9,12 +10,17 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Candidate models list in order of preference
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "public", "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Candidate models list using official Google GenAI SDK model names
 const GEMINI_MODELS = [
-  "gemini-3.6-flash",
-  "gemini-flash-latest",
-  "gemini-3.1-flash-lite",
-  "gemini-2.5-flash"
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "imagen-3.0-generate-002"
 ];
 
 // Contextual Intelligent Fallback Generator when API key permissions are restricted (403 PERMISSION_DENIED)
@@ -298,16 +304,19 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI Image Generator & Editor (Gemini 3 Pro Image & 3.1 Flash Image)
+  // AI Image Generator & Editor (imagen-3.0-generate-002)
   app.post("/api/ai/generate-image", async (req, res) => {
     try {
-      const { prompt, resolution = "2K", isEdit = false, sourceImage } = req.body;
+      const { prompt, resolution = "2K" } = req.body;
       const apiKey = process.env.GEMINI_API_KEY;
-      const selectedModel = isEdit ? "gemini-3.1-flash-image-preview" : "gemini-3-pro-image-preview";
+      const selectedModel = "imagen-3.0-generate-002";
 
       if (apiKey) {
         try {
-          const ai = new GoogleGenAI({ apiKey });
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: { headers: { "User-Agent": "aistudio-build" } }
+          });
           const response = await ai.models.generateContent({
             model: selectedModel,
             contents: `Generate a high resolution ${resolution} quality image: ${prompt}`
@@ -331,11 +340,11 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI Veo Video Generation (Text to Video & Image to Video)
+  // AI Veo Video Generation
   app.post("/api/ai/generate-video", async (req, res) => {
     try {
-      const { prompt, aspectRatio = "16:9", sourceImage } = req.body;
-      const model = "veo-3.1-fast-generate-preview";
+      const { prompt, aspectRatio = "16:9" } = req.body;
+      const model = "gemini-2.5-pro";
       
       res.json({
         videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
@@ -351,13 +360,13 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   // AI Multimodal Analysis (Image & Video Understanding)
   app.post("/api/ai/analyze-media", async (req, res) => {
     try {
-      const { mediaType = "image", mediaUrl, prompt } = req.body;
+      const { mediaType = "image", prompt } = req.body;
       const analysisPrompt = `Analyze this ${mediaType} for MuniSocial content moderation & engagement insights: ${prompt || 'Identify key objects, aesthetics, and viral potential.'}`;
-      const analysis = await generateAI(analysisPrompt, "You are MuniAI's Multimodal Vision Engine powered by gemini-3.1-pro-preview.");
+      const analysis = await generateAI(analysisPrompt, "You are MuniAI's Multimodal Vision Engine powered by gemini-2.5-pro.");
       
       res.json({
         mediaType,
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-2.5-pro",
         analysis,
         aestheticScore: "94/100",
         viralPotential: "High Engagement"
@@ -367,16 +376,15 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI Audio Transcription (Gemini 3.5 Flash)
+  // AI Audio Transcription (Gemini 2.5 Flash)
   app.post("/api/ai/transcribe-audio", async (req, res) => {
     try {
-      const { audioData } = req.body;
       const transcript = await generateAI(
         "Transcribe this audio recording clearly into text with speaker tags if applicable.", 
-        "You are MuniAI's Speech Transcription Engine powered by gemini-3.5-flash."
+        "You are MuniAI's Speech Transcription Engine powered by gemini-2.5-flash."
       );
       res.json({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         transcript: transcript || "Audio transcript successfully processed: 'Hello MuniSocial community! Excited for the new AI features.'"
       });
     } catch (err: any) {
@@ -384,7 +392,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI High Thinking Mode (Gemini 3.1 Pro Preview with HIGH thinking level)
+  // AI High Thinking Mode (Gemini 2.5 Pro with HIGH thinking reasoning)
   app.post("/api/ai/deep-think", async (req, res) => {
     try {
       const { query } = req.body;
@@ -392,9 +400,12 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
 
       if (apiKey) {
         try {
-          const ai = new GoogleGenAI({ apiKey });
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: { headers: { "User-Agent": "aistudio-build" } }
+          });
           const response = await ai.models.generateContent({
-            model: "gemini-3.1-pro-preview",
+            model: "gemini-2.5-pro",
             contents: query || "Deep analysis request",
             config: {
               thinkingConfig: {
@@ -412,17 +423,254 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
 
       const deepResponse = await generateAI(
         `[High Thinking Mode Activated]\nAnalyze comprehensively: ${query}`,
-        "You are MuniAI's High Reasoning Engine powered by gemini-3.1-pro-preview in HIGH thinking level mode."
+        "You are MuniAI's High Reasoning Engine powered by gemini-2.5-pro in HIGH thinking level mode."
       );
 
       res.json({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-2.5-pro",
         thinkingLevel: "HIGH",
         thoughtProcess: "Evaluated architecture, security protocols, edge network performance, and user impact.",
         response: deepResponse
       });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || "Deep thinking mode error" });
+    }
+  });
+
+  // Serve uploads directory
+  app.use("/uploads", express.static(uploadsDir));
+
+  // Persistent File Storage Path for Server-Side Database
+  const dbFilePath = path.join(process.cwd(), "posts_db.json");
+
+  // Load or initialize persistent posts database
+  const getStoredDb = () => {
+    try {
+      if (fs.existsSync(dbFilePath)) {
+        const raw = fs.readFileSync(dbFilePath, "utf-8");
+        return JSON.parse(raw);
+      }
+    } catch (e) {
+      console.error("Error loading database file:", e);
+    }
+    return { posts: [], comments: {} };
+  };
+
+  const saveStoredDb = (data: { posts: any[]; comments: Record<string, any[]> }) => {
+    try {
+      fs.writeFileSync(dbFilePath, JSON.stringify(data, null, 2), "utf-8");
+    } catch (e) {
+      console.error("Error saving database file:", e);
+    }
+  };
+
+  // GET /api/posts - Fetch all saved posts and videos
+  app.get("/api/posts", (_req, res) => {
+    try {
+      const dbData = getStoredDb();
+      res.json({ success: true, posts: dbData.posts });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed to fetch posts" });
+    }
+  });
+
+  // GET /api/videos - Fetch video reels and shorts
+  app.get("/api/videos", (_req, res) => {
+    try {
+      const dbData = getStoredDb();
+      const videos = dbData.posts.filter((p: any) => p.type === "short" || p.type === "video" || !!p.videoUrl);
+      res.json({ success: true, videos });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed to fetch videos" });
+    }
+  });
+
+  // POST /api/posts - Create and permanently save a new post or video
+  app.post("/api/posts", (req, res) => {
+    try {
+      const post = req.body;
+      if (!post.content && !post.mediaUrl && !post.videoUrl) {
+        return res.status(400).json({ error: "Post must contain content or media" });
+      }
+
+      const dbData = getStoredDb();
+      const newPost = {
+        id: post.id || `post_${Date.now()}`,
+        author: post.author || {
+          id: "usr_me",
+          name: "Alex Rivera",
+          username: "alexrivera",
+          avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+          verified: true
+        },
+        type: post.type || "article",
+        content: post.content || "",
+        mediaUrl: post.mediaUrl || null,
+        videoUrl: post.videoUrl || null,
+        thumbnailUrl: post.thumbnailUrl || post.mediaUrl || null,
+        tags: post.tags || ["MuniSocial"],
+        likesCount: post.likesCount || 0,
+        commentsCount: post.commentsCount || 0,
+        repostsCount: post.repostsCount || 0,
+        createdAt: new Date().toISOString()
+      };
+
+      dbData.posts.unshift(newPost);
+      saveStoredDb(dbData);
+
+      res.status(201).json({ success: true, post: newPost });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed to save post" });
+    }
+  });
+
+  // GET /api/posts/:id/comments - Fetch comments for a post
+  app.get("/api/posts/:id/comments", (req, res) => {
+    try {
+      const { id } = req.params;
+      const dbData = getStoredDb();
+      const comments = dbData.comments[id] || [];
+      res.json({ success: true, comments });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed to fetch comments" });
+    }
+  });
+
+  // POST /api/posts/:id/comments - Save a new comment to a post
+  app.post("/api/posts/:id/comments", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { content, authorName, authorAvatar } = req.body;
+      if (!content) {
+        return res.status(400).json({ error: "Comment content is required" });
+      }
+
+      const dbData = getStoredDb();
+      if (!dbData.comments[id]) {
+        dbData.comments[id] = [];
+      }
+
+      const newComment = {
+        id: `cmt_${Date.now()}`,
+        postId: id,
+        authorName: authorName || "Alex Rivera",
+        authorAvatar: authorAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+        content,
+        likesCount: 0,
+        createdAt: new Date().toISOString()
+      };
+
+      dbData.comments[id].push(newComment);
+
+      // Increment comment count on post
+      const targetPost = dbData.posts.find((p: any) => p.id === id);
+      if (targetPost) {
+        targetPost.commentsCount = (targetPost.commentsCount || 0) + 1;
+      }
+
+      saveStoredDb(dbData);
+      res.status(201).json({ success: true, comment: newComment });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed to save comment" });
+    }
+  });
+
+  // POST /api/posts/:id/like - Toggle like on a post
+  app.post("/api/posts/:id/like", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { incrementBy } = req.body;
+
+      const dbData = getStoredDb();
+      const targetPost = dbData.posts.find((p: any) => p.id === id);
+      if (targetPost) {
+        targetPost.likesCount = Math.max(0, (targetPost.likesCount || 0) + (incrementBy || 1));
+        saveStoredDb(dbData);
+      }
+
+      res.json({ success: true, likesCount: targetPost?.likesCount || 0 });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed to update like count" });
+    }
+  });
+
+  // File & Video Upload API Endpoint (Base64 / Multipart / Storage Proxy)
+  app.post("/api/upload-video", (req, res) => {
+    try {
+      const { fileName, fileData, title, description, category } = req.body;
+      if (!fileData) {
+        return res.status(400).json({ error: "No video payload provided" });
+      }
+
+      const ext = path.extname(fileName || "video.mp4") || ".mp4";
+      const safeName = `video_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
+      const filePath = path.join(uploadsDir, safeName);
+
+      // Save base64 video buffer to disk
+      const base64Data = fileData.replace(/^data:[^;]+;base64,/, "");
+      fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
+
+      const url = `/uploads/${safeName}`;
+
+      // Save to Database as a Video Reel post
+      const dbData = getStoredDb();
+      const videoPost = {
+        id: `reel_${Date.now()}`,
+        author: {
+          id: "usr_me",
+          name: "Alex Rivera",
+          username: "alexrivera",
+          avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+          verified: true
+        },
+        type: "short",
+        content: title || description || "Uploaded high-resolution short video reel 🎥",
+        mediaUrl: url,
+        videoUrl: url,
+        thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600",
+        tags: [category || "Video", "Shorts", "MuniSocial"],
+        likesCount: 1,
+        commentsCount: 0,
+        repostsCount: 0,
+        createdAt: new Date().toISOString()
+      };
+
+      dbData.posts.unshift(videoPost);
+      saveStoredDb(dbData);
+
+      res.status(201).json({
+        success: true,
+        url,
+        fileName: safeName,
+        post: videoPost,
+        message: "Video uploaded and processed successfully!"
+      });
+    } catch (err: any) {
+      console.error("Video Upload Error:", err);
+      res.status(500).json({ error: err?.message || "Failed to process video upload" });
+    }
+  });
+
+  // Generic File Upload API Endpoint (Binary or Base64)
+  app.post("/api/upload", (req, res) => {
+    try {
+      const { fileName, fileData } = req.body;
+      if (!fileData) {
+        return res.status(400).json({ error: "No file data provided" });
+      }
+
+      const safeName = `${Date.now()}_${(fileName || "upload.png").replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const filePath = path.join(uploadsDir, safeName);
+
+      // Handle base64 string
+      const base64Data = fileData.replace(/^data:[^;]+;base64,/, "");
+      fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
+
+      const url = `/uploads/${safeName}`;
+      res.json({ success: true, url, fileName: safeName });
+    } catch (err: any) {
+      console.error("Upload Error:", err);
+      res.status(500).json({ error: err?.message || "Failed to upload file" });
     }
   });
 

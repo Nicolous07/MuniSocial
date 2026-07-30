@@ -18,6 +18,7 @@ import { MuniAICopilotView } from './components/MuniAICopilotView';
 import { AuthModal } from './components/AuthModal';
 import { ToastContainer, ToastMessage } from './components/ToastContainer';
 import { trackNavigation } from './lib/userTracker';
+import { triggerHaptic } from './lib/haptics';
 import { 
   Home, 
   PlaySquare, 
@@ -50,10 +51,21 @@ import {
   INITIAL_CREATOR_ANALYTICS 
 } from './mock/data';
 
+import { 
+  subscribeToRealtimePosts, 
+  subscribeToChatMessages, 
+  subscribeToNotifications,
+  sendChatMessage
+} from './lib/dbService';
+
+import { auth, onAuthStateChanged } from './lib/firebase';
+
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('feed');
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(7);
 
   const handleSelectView = (view: ViewMode) => {
+    triggerHaptic('selection');
     if (view !== currentView) {
       trackNavigation(currentView, view, CURRENT_USER.name);
       setCurrentView(view);
@@ -136,9 +148,78 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [analytics, setAnalytics] = useState<CreatorAnalytics>(INITIAL_CREATOR_ANALYTICS);
 
+  // Realtime Firestore Subscriptions
+  useEffect(() => {
+    // Auth Listener
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        localStorage.setItem('munisocial_auth', 'true');
+      }
+    });
+
+    // Realtime Posts Listener
+    const unsubscribePosts = subscribeToRealtimePosts((realtimePosts) => {
+      if (realtimePosts && realtimePosts.length > 0) {
+        setPosts(prev => {
+          // Merge newly created DB posts while retaining initial structure
+          const existingIds = new Set(realtimePosts.map(p => p.id));
+          const remainingPrev = prev.filter(p => !existingIds.has(p.id));
+          return [...realtimePosts, ...remainingPrev];
+        });
+      }
+    });
+
+    // Realtime Chat Messages Listener
+    const unsubscribeChat = subscribeToChatMessages((realtimeMsgs) => {
+      if (realtimeMsgs && realtimeMsgs.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(realtimeMsgs.map(m => m.id));
+          const remainingPrev = prev.filter(m => !existingIds.has(m.id));
+          return [...remainingPrev, ...realtimeMsgs];
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribePosts();
+      unsubscribeChat();
+    };
+  }, []);
+
   const handleAddPost = (newPost: SocialPost) => {
     setPosts(prev => [newPost, ...prev]);
-    showToast('Post Published! 🚀', 'Your post is now live on MuniSocial feed.', 'success');
+    showToast('Post Published! 🚀', 'Your post is live on MuniSocial persistent feed.', 'success');
+  };
+
+  const handleAddStory = (newStory: Story) => {
+    setStories(prev => [newStory, ...prev]);
+    showToast('Story Created! 📸', 'Your 24-hour story is live on MuniSocial.', 'success');
+  };
+
+  const handleSendDirectMessage = async (
+    recipientUsername: string,
+    recipientName: string,
+    recipientAvatar: string,
+    text: string
+  ) => {
+    const newMsgText = `@${recipientUsername}: ${text}`;
+    const newMsg: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      senderId: CURRENT_USER.id,
+      senderName: CURRENT_USER.name,
+      senderAvatar: CURRENT_USER.avatar,
+      text: newMsgText,
+      timestamp: 'Just now',
+    };
+    setMessages(prev => [...prev, newMsg]);
+
+    // Send to database
+    await sendChatMessage({
+      content: newMsgText,
+      mediaUrl: null
+    });
   };
 
   const filteredPosts = posts.filter(p => {
@@ -226,6 +307,7 @@ export default function App() {
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           isMobileOpen={isMobileMenuOpen}
           onCloseMobile={() => setIsMobileMenuOpen(false)}
+          unreadMessagesCount={unreadMessagesCount}
         />
 
         {/* View Component Switcher */}
@@ -237,9 +319,14 @@ export default function App() {
               user={CURRENT_USER}
               isDarkMode={isDarkMode}
               onSelectView={handleSelectView}
-              onOpenCreate={() => setIsCreateOpen(true)}
+              onOpenCreate={() => {
+                triggerHaptic('medium');
+                setIsCreateOpen(true);
+              }}
               onToggleAiDrawer={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
               isSplashVisible={isSplashVisible}
+              onSendDirectMessage={handleSendDirectMessage}
+              onShowToast={showToast}
             />
           )}
 
@@ -265,7 +352,10 @@ export default function App() {
               posts={posts}
               user={CURRENT_USER}
               isDarkMode={isDarkMode}
-              onOpenCreate={() => setIsCreateOpen(true)}
+              onOpenCreate={() => {
+                triggerHaptic('medium');
+                setIsCreateOpen(true);
+              }}
             />
           )}
 
@@ -291,6 +381,7 @@ export default function App() {
               user={CURRENT_USER}
               isDarkMode={isDarkMode}
               onShowToast={showToast}
+              onUnreadCountChange={setUnreadMessagesCount}
             />
           )}
 
@@ -394,6 +485,7 @@ export default function App() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onAddPost={handleAddPost}
+        onAddStory={handleAddStory}
         user={CURRENT_USER}
         isDarkMode={isDarkMode}
       />

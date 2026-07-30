@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-react';
 import { ViewMode } from '../types';
+import { triggerHaptic } from '../lib/haptics';
 
 interface SidebarNavProps {
   currentView: ViewMode;
@@ -30,6 +31,7 @@ interface SidebarNavProps {
   onToggleCollapse?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+  unreadMessagesCount?: number;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -39,11 +41,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   isCollapsed = false,
   onToggleCollapse,
   isMobileOpen = false,
-  onCloseMobile
+  onCloseMobile,
+  unreadMessagesCount = 7
 }) => {
   const navItems = [
     { id: 'feed' as ViewMode, label: 'Home Feed', icon: Home, badge: 'AI Ranked' },
-    { id: 'shorts' as ViewMode, label: 'Shorts Reels', icon: PlaySquare, badge: 'TikTok' },
+    { id: 'shorts' as ViewMode, label: 'Shorts & Reels', icon: PlaySquare, badge: 'Reels' },
     { id: 'watch' as ViewMode, label: 'MuniWatch 4K', icon: Tv, badge: '4K/8K' },
     { id: 'threads' as ViewMode, label: 'MuniThreads', icon: MessageSquareCode, badge: 'Live' },
     { id: 'communities' as ViewMode, label: 'Communities', icon: Users, badge: 'Groups' },
@@ -91,17 +94,20 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
+          const isMessages = item.id === 'messages';
+          const hasUnread = isMessages && unreadMessagesCount > 0;
 
           return (
             <button
               key={item.id}
               id={`nav-item-${item.id}`}
               onClick={() => {
+                triggerHaptic('selection');
                 onSelectView(item.id);
                 if (onCloseMobile) onCloseMobile();
               }}
-              title={collapsed ? item.label : undefined}
-              className={`w-full flex items-center rounded-2xl text-xs font-bold transition-all group ${
+              title={collapsed ? `${item.label}${hasUnread ? ` (${unreadMessagesCount} unread)` : ''}` : undefined}
+              className={`w-full flex items-center rounded-2xl text-xs font-bold transition-all group relative ${
                 collapsed 
                   ? 'justify-center p-3' 
                   : 'justify-between px-3.5 py-2.5'
@@ -113,12 +119,43 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     : 'hover:bg-slate-200/80 text-slate-900 hover:text-black'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Icon className={`w-4.5 h-4.5 transition-transform group-hover:scale-110 ${
-                  isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'
-                }`} />
-                {!collapsed && <span className={isActive ? 'text-white' : 'text-slate-900 dark:text-slate-200'}>{item.label}</span>}
+              <div className="flex items-center gap-3 relative">
+                <div className="relative">
+                  <Icon className={`w-4.5 h-4.5 transition-transform group-hover:scale-110 ${
+                    isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'
+                  }`} />
+                  {hasUnread && collapsed && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 bg-rose-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center animate-pulse border border-slate-950 shadow-sm">
+                      {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <span className={isActive ? 'text-white' : 'text-slate-900 dark:text-slate-200'}>
+                    {item.label}
+                  </span>
+                )}
               </div>
+
+              {!collapsed && (
+                <div className="flex items-center gap-1.5">
+                  {hasUnread ? (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold animate-pulse shadow-sm ${
+                      isActive 
+                        ? 'bg-white text-indigo-700 shadow-md' 
+                        : 'bg-gradient-to-r from-rose-500 to-pink-600 text-white border border-rose-400/40'
+                    }`}>
+                      {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                    </span>
+                  ) : item.badge ? (
+                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${
+                      isActive ? 'bg-indigo-500/40 text-white' : 'bg-slate-800/80 text-slate-400 border border-slate-700/60'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </div>
+              )}
             </button>
           );
         })}

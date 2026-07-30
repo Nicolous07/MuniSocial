@@ -13,8 +13,8 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
     // We regex match tokens:
     // 1. ```code blocks``` or `inline code`
     // 2. *_~text~_* / combinations
-    // 3. *bold*, _italic_, ~strikethrough~
-    const tokenRegex = /(```[\s\S]*?```|`[^`]+`|\*_~[^~_*]+~_\*|\*~_[^~_*]+_~\*|\*_[^*_]+_\*|\*~[^*~]+~\*|~_[^~_]+_~|\*[^*]+\*|_[^_]+_|~[^~]+~)/g;
+    // 3. **bold**, *bold*, _italic_, ~strikethrough~
+    const tokenRegex = /(```[\s\S]*?```|`[^`]+`|\*_~[^~_*]+~_\*|\*~_[^~_*]+_~\*|\*_[^*_]+_\*|\*~[^*~]+~\*|~_[^~_]+_~|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_|~[^~]+~)/g;
 
     const parts = input.split(tokenRegex);
 
@@ -76,6 +76,15 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
           <em key={idx} className="italic line-through">
             {part.slice(2, -2)}
           </em>
+        );
+      }
+
+      // Double Asterisk Bold: **text**
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        return (
+          <strong key={idx} className="font-bold text-white">
+            {part.slice(2, -2)}
+          </strong>
         );
       }
 

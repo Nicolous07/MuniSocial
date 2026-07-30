@@ -7,23 +7,90 @@
       "properties": {
         "uid": { "type": "string" },
         "displayName": { "type": "string" },
+        "username": { "type": "string" },
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "proBadge": { "type": "boolean" },
         "lastLoginAt": { "type": "string" }
       },
       "required": ["uid", "email"]
     },
     "posts": {
       "title": "posts",
-      "description": "User posts and created content",
+      "description": "Social feed posts and video reels",
       "type": "object",
       "properties": {
         "authorUid": { "type": "string" },
         "content": { "type": "string" },
-        "mediaUrl": { "type": "string font" },
+        "type": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
         "createdAt": { "type": "string" }
       },
       "required": ["authorUid", "content"]
+    },
+    "comments": {
+      "title": "comments",
+      "description": "Post comments",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["postId", "authorUid", "content"]
+    },
+    "chat_messages": {
+      "title": "chat_messages",
+      "description": "Realtime chat messages",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string" },
+        "recipientUid": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["senderUid", "content"]
+    },
+    "notifications": {
+      "title": "notifications",
+      "description": "User notifications",
+      "type": "object",
+      "properties": {
+        "userUid": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userUid", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile documents"
+    },
+    "/posts/{postId}": {
+      "schema": "posts",
+      "description": "Posts and shorts collection"
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": "comments",
+      "description": "Comments on posts"
+    },
+    "/chat_messages/{messageId}": {
+      "schema": "chat_messages",
+      "description": "Direct message chat history"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "notifications",
+      "description": "Activity notifications"
     }
   }
 }

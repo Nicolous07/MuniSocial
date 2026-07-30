@@ -32,6 +32,25 @@ export const CURRENT_USER: UserProfile = {
 
 export const INITIAL_STORIES: Story[] = [
   {
+    id: 'st_my_1',
+    author: {
+      name: 'Alex Rivera',
+      username: 'alexrivera',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    },
+    mediaUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
+    type: 'image',
+    caption: 'Deploying the new Gemini 3.6 Flash microservices backend! 💻⚡',
+    hasUnseen: false,
+    createdAt: '15m ago',
+    seenBy: [
+      { id: 'v1', name: 'Elena Rostova', username: 'elena_ai', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', viewedAt: '2m ago' },
+      { id: 'v2', name: 'Marcus Vance', username: 'marcus_tech', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', viewedAt: '5m ago' },
+      { id: 'v3', name: 'Sophia Chen', username: 'sophiadesign', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80', viewedAt: '8m ago' },
+      { id: 'v4', name: 'David K. Miller', username: 'davemiller_ai', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80', viewedAt: '12m ago' },
+    ]
+  },
+  {
     id: 'st_1',
     author: {
       name: 'Elena Rostova',
@@ -43,6 +62,10 @@ export const INITIAL_STORIES: Story[] = [
     caption: 'Sunrise coding session by the beach 🌊✨ #MuniSocial',
     hasUnseen: true,
     createdAt: '10m ago',
+    seenBy: [
+      { id: 'v10', name: 'Alex Rivera', username: 'alexrivera', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', viewedAt: '1m ago' },
+      { id: 'v11', name: 'Marcus Vance', username: 'marcus_tech', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', viewedAt: '6m ago' }
+    ]
   },
   {
     id: 'st_2',
@@ -56,6 +79,9 @@ export const INITIAL_STORIES: Story[] = [
     caption: 'Testing the new MuniAI real-time code assistant! ⚡',
     hasUnseen: true,
     createdAt: '45m ago',
+    seenBy: [
+      { id: 'v12', name: 'Elena Rostova', username: 'elena_ai', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', viewedAt: '10m ago' }
+    ]
   },
   {
     id: 'st_3',
@@ -69,6 +95,9 @@ export const INITIAL_STORIES: Story[] = [
     caption: 'Drafting 3D UI concepts for Apple Vision & MuniSocial 👓',
     hasUnseen: false,
     createdAt: '2h ago',
+    seenBy: [
+      { id: 'v13', name: 'Alex Rivera', username: 'alexrivera', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', viewedAt: '1h ago' }
+    ]
   },
   {
     id: 'st_4',
@@ -82,6 +111,7 @@ export const INITIAL_STORIES: Story[] = [
     caption: 'MuniAI v3.5 is live across all platforms! 🚀',
     hasUnseen: true,
     createdAt: '3h ago',
+    seenBy: []
   },
 ];
 
@@ -725,6 +755,7 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
     text: 'Hey MuniAI! Can you help me review the analytics for my latest video masterclass?',
     timestamp: '10:02 AM',
+    status: 'read',
   },
   {
     id: 'msg_3',

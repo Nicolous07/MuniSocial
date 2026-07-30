@@ -1,8 +1,72 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Global Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAuthor(authorUid) {
+      return isSignedIn() && request.auth.uid == authorUid;
+    }
+
+    // Default deny all
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isOwner(userId);
+    }
+
+    // Posts Collection
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isAuthor(resource.data.authorUid);
+
+      // Subcollection Comments
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid;
+        allow update, delete: if isAuthor(resource.data.authorUid);
+      }
+    }
+
+    // Top-level Comments
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if isAuthor(resource.data.authorUid);
+    }
+
+    // Realtime Chat Messages
+    match /chat_messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.senderUid == request.auth.uid || resource.data.recipientUid == request.auth.uid);
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.userUid == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userUid == request.auth.uid;
+    }
+
+    // Stories Collection
+    match /stories/{storyId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if isAuthor(resource.data.authorUid);
     }
   }
 }

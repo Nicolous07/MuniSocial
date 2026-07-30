@@ -12,6 +12,8 @@ import {
   MoreVertical,
   Check,
   CheckCheck,
+  Clock,
+  Eye,
   VideoOff,
   MicOff,
   Users,
@@ -23,12 +25,14 @@ import {
 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types';
 import { FormattedText } from './FormattedText';
+import { triggerHaptic } from '../lib/haptics';
 
 interface MessagesViewProps {
   initialMessages: ChatMessage[];
   user: UserProfile;
   isDarkMode: boolean;
   onShowToast?: (title: string, message?: string, type?: 'success' | 'info' | 'alert' | 'error') => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
 interface ChatThread {
@@ -117,7 +121,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   initialMessages,
   user,
   isDarkMode,
-  onShowToast
+  onShowToast,
+  onUnreadCountChange
 }) => {
   const [activeThreadId, setActiveThreadId] = useState<string>('thread_1');
   const [threads, setThreads] = useState<ChatThread[]>(CONVERSATIONS);
@@ -127,6 +132,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const [activeCall, setActiveCall] = useState<'audio' | 'video' | null>(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null);
 
   // Group Creation Modal State
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
@@ -135,31 +142,67 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
   const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
 
+  // Notify parent of total unread count changes
+  React.useEffect(() => {
+    const totalUnread = threads.reduce((acc, t) => acc + t.unread, 0);
+    onUnreadCountChange?.(totalUnread);
+  }, [threads, onUnreadCountChange]);
+
+  const handleSelectThread = (id: string) => {
+    triggerHaptic('selection');
+    setActiveThreadId(id);
+    // Mark as read when selected
+    setThreads(prev => prev.map(t => t.id === id ? { ...t, unread: 0 } : t));
+  };
+
   const handleSend = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim()) return;
 
+    triggerHaptic('light');
+    const msgId = `msg_${Date.now()}`;
     const newMsg: ChatMessage = {
-      id: `msg_${Date.now()}`,
+      id: msgId,
       senderId: user.id,
       senderName: user.name,
       senderAvatar: user.avatar,
       text: input.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'sending'
     };
 
     setMessages(prev => [...prev, newMsg]);
     setInput('');
 
-    if (onShowToast) {
-      onShowToast('Message Sent', `Delivered to ${activeThread.name}`, 'success');
-    }
-
-    // Update last message in thread
+    // Update last message in thread preview
     setThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, lastMessage: newMsg.text, time: 'Just now' } : t));
 
-    // Simulate auto-reply
+    // 1. Progress to 'sent' after 300ms
     setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
+    }, 300);
+
+    // 2. Progress to 'delivered' after 700ms
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'delivered' } : m));
+    }, 700);
+
+    // 3. Trigger recipient 'typing...' animation after 1000ms
+    setTimeout(() => {
+      setIsTyping(true);
+    }, 1000);
+
+    // 4. Progress to 'read' after 1400ms (Recipient opens / reads message)
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'read' } : m));
+      if (onShowToast) {
+        onShowToast('Read Receipt', `${activeThread.name} read your message ✓✓`, 'info');
+      }
+    }, 1400);
+
+    // Simulate auto-reply after recipient reads message
+    setTimeout(() => {
+      setIsTyping(false);
       let replyText = `Received! *Direct chat* is connected.`;
       if (activeThread.id === 'thread_ai') {
         replyText = `✨ *MuniAI Answer*: Processed "${newMsg.text}". I formatted your answer with rich text formatting!`;
@@ -182,13 +225,48 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
       };
 
       setMessages(prev => [...prev, autoReplyMsg]);
-    }, 1200);
+    }, 2400);
+  };
+
+  const handleToggleReaction = (msgId: string, emoji: string) => {
+    triggerHaptic('reaction');
+    setActiveReactionPickerId(null);
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId) return m;
+
+      const currentReactions = m.reactions || [];
+      const existingReaction = currentReactions.find(r => r.emoji === emoji);
+
+      let updatedReactions;
+      if (existingReaction) {
+        const hasUser = existingReaction.users.includes(user.id);
+        if (hasUser) {
+          // Remove user reaction
+          const newUsers = existingReaction.users.filter(u => u !== user.id);
+          if (newUsers.length === 0) {
+            updatedReactions = currentReactions.filter(r => r.emoji !== emoji);
+          } else {
+            updatedReactions = currentReactions.map(r => r.emoji === emoji ? { ...r, count: newUsers.length, users: newUsers } : r);
+          }
+        } else {
+          // Add user reaction
+          const newUsers = [...existingReaction.users, user.id];
+          updatedReactions = currentReactions.map(r => r.emoji === emoji ? { ...r, count: newUsers.length, users: newUsers } : r);
+        }
+      } else {
+        // Create new reaction
+        updatedReactions = [...currentReactions, { emoji, count: 1, users: [user.id] }];
+      }
+
+      return { ...m, reactions: updatedReactions };
+    }));
   };
 
   const handleCreateGroup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!groupName.trim()) return;
 
+    triggerHaptic('success');
     const newGroupThread: ChatThread = {
       id: `group_${Date.now()}`,
       name: `👥 ${groupName.trim()}`,
@@ -219,8 +297,59 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
   const filteredThreads = threads.filter(t => 
     t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    t.username.toLowerCase().includes(searchQuery.toLowerCase())
+    t.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const renderReadReceipt = (status?: 'sending' | 'sent' | 'delivered' | 'read', timestamp?: string) => {
+    const currentStatus = status || 'read';
+
+    if (currentStatus === 'sending') {
+      return (
+        <span className="flex items-center gap-1 text-[10px] text-indigo-200/90 font-mono" title="Sending message...">
+          <Clock className="w-3 h-3 animate-spin text-indigo-200" />
+          <span className="text-[9px]">Sending...</span>
+        </span>
+      );
+    }
+
+    if (currentStatus === 'sent') {
+      return (
+        <span className="flex items-center gap-1 text-[10px] text-indigo-200/90 font-mono" title="Sent to server">
+          <Check className="w-3.5 h-3.5 text-indigo-200" />
+          <span className="text-[9px]">Sent</span>
+        </span>
+      );
+    }
+
+    if (currentStatus === 'delivered') {
+      return (
+        <span className="flex items-center gap-1 text-[10px] text-indigo-200/90 font-mono" title={`Delivered to ${activeThread.name}`}>
+          <CheckCheck className="w-3.5 h-3.5 text-indigo-200 opacity-80" />
+          <span className="text-[9px]">Delivered</span>
+        </span>
+      );
+    }
+
+    return (
+      <button 
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onShowToast) {
+            onShowToast('Read Receipt Details', `Message seen by ${activeThread.name} at ${timestamp || '10:42 AM'} (Double Checkmark ✓✓)`, 'info');
+          }
+        }}
+        className="flex items-center gap-1 text-[10px] font-bold hover:opacity-90 transition-opacity"
+        title={`Read & Seen by ${activeThread.name} at ${timestamp || '10:42 AM'}`}
+      >
+        <CheckCheck className="w-3.5 h-3.5 text-cyan-300 font-extrabold drop-shadow-sm" />
+        <span className="bg-cyan-400/20 text-cyan-200 border border-cyan-400/40 text-[9px] px-1 py-0.2 rounded font-mono font-bold tracking-tight shadow-sm flex items-center gap-1">
+          Seen
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto py-2 sm:py-4 px-2 sm:px-4 lg:px-6 min-h-[calc(100vh-5rem)] flex flex-col">
@@ -281,61 +410,91 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
               <Search className="w-4 h-4 text-slate-600 dark:text-slate-400 mr-2 shrink-0" />
               <input 
                 type="text" 
-                placeholder="Search direct chats or groups..." 
+                placeholder="Search chats by name or text..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent border-0 text-xs focus:outline-none text-slate-950 dark:text-white placeholder-slate-600 dark:placeholder-slate-400 font-semibold"
               />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="p-1 text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
+            {searchQuery && (
+              <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
+                <span>Matching threads:</span>
+                <span className="font-mono text-indigo-400 font-bold">{filteredThreads.length} found</span>
+              </div>
+            )}
           </div>
 
           {/* Conversations Thread List */}
           <div className="flex-1 overflow-y-auto space-y-1 p-2">
-            {filteredThreads.map((thread) => {
-              const isActive = thread.id === activeThreadId;
-
-              return (
-                <button
-                  key={thread.id}
-                  onClick={() => setActiveThreadId(thread.id)}
-                  className={`w-full p-3 rounded-2xl flex items-center gap-3 transition-all text-left relative ${
-                    isActive 
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
-                      : isDarkMode 
-                        ? 'hover:bg-slate-800/80 text-slate-200' 
-                        : 'hover:bg-slate-200/80 text-slate-950'
-                  }`}
+            {filteredThreads.length === 0 ? (
+              <div className="p-6 text-center text-slate-400 text-xs space-y-2">
+                <Search className="w-8 h-8 mx-auto text-slate-600 animate-pulse" />
+                <p className="font-bold">No chats match "{searchQuery}"</p>
+                <button 
+                  onClick={() => setSearchQuery('')} 
+                  className="px-3 py-1 rounded-lg bg-indigo-600/20 text-indigo-400 text-[11px] font-bold"
                 >
-                  <div className="relative shrink-0">
-                    <img src={thread.avatar} alt={thread.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
-                    {thread.online && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-950"></span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className={`font-bold text-xs truncate flex items-center gap-1 ${isActive ? 'text-white' : 'text-slate-950 dark:text-slate-100'}`}>
-                        <span>{thread.name}</span>
-                        {thread.isGroup && <span className="px-1.5 py-0.2 rounded text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Group</span>}
-                      </span>
-                      <span className={`text-[10px] font-mono ${isActive ? 'text-indigo-100' : 'text-slate-700 dark:text-slate-400 font-bold'}`}>
-                        {thread.time}
-                      </span>
-                    </div>
-                    <div className={`text-xs truncate ${isActive ? 'text-indigo-100' : 'text-slate-800 dark:text-slate-400 font-medium'}`}>
-                      <FormattedText text={thread.lastMessage} />
-                    </div>
-                  </div>
-
-                  {thread.unread > 0 && !isActive && (
-                    <span className="w-5 h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
-                      {thread.unread}
-                    </span>
-                  )}
+                  Clear search
                 </button>
-              );
-            })}
+              </div>
+            ) : (
+              filteredThreads.map((thread) => {
+                const isActive = thread.id === activeThreadId;
+
+                return (
+                  <button
+                    key={thread.id}
+                    onClick={() => handleSelectThread(thread.id)}
+                    className={`w-full p-3 rounded-2xl flex items-center gap-3 transition-all text-left relative ${
+                      isActive 
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                        : isDarkMode 
+                          ? 'hover:bg-slate-800/80 text-slate-200' 
+                          : 'hover:bg-slate-200/80 text-slate-950'
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      <img src={thread.avatar} alt={thread.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
+                      {thread.online && (
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-950"></span>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className={`font-bold text-xs truncate flex items-center gap-1 ${isActive ? 'text-white' : 'text-slate-950 dark:text-slate-100'}`}>
+                          <span>{thread.name}</span>
+                          {thread.isGroup && <span className="px-1.5 py-0.2 rounded text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Group</span>}
+                        </span>
+                        <span className={`text-[10px] font-mono ${isActive ? 'text-indigo-100' : 'text-slate-700 dark:text-slate-400 font-bold'}`}>
+                          {thread.time}
+                        </span>
+                      </div>
+                      <div className={`text-xs truncate flex items-center gap-1 ${isActive ? 'text-indigo-100' : 'text-slate-800 dark:text-slate-400 font-medium'}`}>
+                        {thread.unread === 0 && (
+                          <CheckCheck className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-cyan-200' : 'text-cyan-500 dark:text-cyan-400'}`} title="Message read" />
+                        )}
+                        <FormattedText text={thread.lastMessage} />
+                      </div>
+                    </div>
+
+                    {thread.unread > 0 && !isActive && (
+                      <span className="w-5 h-5 bg-gradient-to-r from-rose-500 to-pink-600 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shrink-0 animate-pulse shadow-sm">
+                        {thread.unread}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -358,15 +517,45 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                   <h3 className="font-bold text-sm text-slate-950 dark:text-white">{activeThread.name}</h3>
                   {activeThread.verified && <ShieldCheck className="w-4 h-4 text-indigo-400" />}
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                  {activeThread.isGroup 
-                    ? `Group • ${activeThread.members?.length || 5} members` 
-                    : activeThread.online ? 'Online • Active now' : 'Offline'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {isTyping ? (
+                    <span className="text-[11px] text-cyan-400 font-mono font-bold animate-pulse flex items-center gap-1">
+                      <span>typing message</span>
+                      <span className="flex gap-0.5">
+                        <span className="w-1 h-1 bg-cyan-400 rounded-full animate-ping"></span>
+                        <span className="w-1 h-1 bg-cyan-400 rounded-full animate-ping delay-100"></span>
+                        <span className="w-1 h-1 bg-cyan-400 rounded-full animate-ping delay-200"></span>
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      {activeThread.isGroup 
+                        ? `Group • ${activeThread.members?.length || 5} members` 
+                        : activeThread.online ? 'Online • Active now' : 'Offline'}
+                    </span>
+                  )}
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" title="Read receipts active for this chat">
+                    <Eye className="w-3 h-3 text-cyan-400" /> Read Receipts On
+                  </span>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  triggerHaptic('light');
+                  setIsTyping(!isTyping);
+                }}
+                className={`px-2.5 py-1 rounded-xl text-[10px] font-mono font-bold border transition-all ${
+                  isTyping 
+                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 animate-pulse' 
+                    : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:text-white'
+                }`}
+                title="Test typing indicator animation"
+              >
+                {isTyping ? 'Typing...' : 'Simulate Typing'}
+              </button>
               <button className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white">
                 <MoreVertical className="w-4 h-4" />
               </button>
@@ -374,41 +563,103 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
           </div>
 
           {/* Messages Feed Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-950/40">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/40">
             {messages.map((m) => {
               const isMe = m.senderId === user.id;
+              const hasReactions = m.reactions && m.reactions.length > 0;
 
               return (
-                <div key={m.id} className={`flex gap-2.5 ${isMe ? 'flex-row-reverse' : ''}`}>
+                <div key={m.id} className={`flex gap-2.5 group relative ${isMe ? 'flex-row-reverse' : ''}`}>
                   <img src={m.senderAvatar} alt={m.senderName} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
-                  <div className={`max-w-[80%] sm:max-w-[70%] rounded-2xl p-3.5 text-xs space-y-1 shadow-sm ${
-                    isMe 
-                      ? 'bg-indigo-600 text-white rounded-tr-none' 
-                      : m.isAi 
-                        ? isDarkMode 
-                          ? 'bg-slate-950 border border-indigo-500/40 text-slate-100 rounded-tl-none' 
-                          : 'bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-tl-none font-semibold'
-                        : isDarkMode 
-                          ? 'bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none' 
-                          : 'bg-slate-100 border border-slate-200 text-slate-950 rounded-tl-none font-semibold'
-                  }`}>
-                    <div className="flex items-center justify-between gap-4 text-[10px] opacity-80 mb-1">
-                      <span className="font-bold">{m.senderName}</span>
-                      <span className="font-mono text-[9px]">{m.timestamp}</span>
+                  
+                  <div className="flex flex-col space-y-1 max-w-[80%] sm:max-w-[75%]">
+                    {/* Hover Emoji Reaction Bar */}
+                    <div className={`hidden group-hover:flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/95 border border-slate-700 shadow-xl backdrop-blur-md absolute -top-8 z-10 ${
+                      isMe ? 'right-10' : 'left-10'
+                    }`}>
+                      {['❤️', '🔥', '👍', '😂', '😮', '👏', '🚀'].map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => handleToggleReaction(m.id, emoji)}
+                          className="hover:scale-130 active:scale-95 transition-transform p-0.5 text-xs"
+                          title={`React with ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
                     </div>
-                    
-                    {/* Render text with formatting */}
-                    <FormattedText text={m.text} className="text-xs" />
 
-                    {isMe && (
-                      <div className="flex justify-end text-[10px] opacity-80 mt-1">
-                        <CheckCheck className="w-3.5 h-3.5 text-indigo-200" />
+                    <div className={`rounded-2xl p-3.5 text-xs space-y-1 shadow-sm relative ${
+                      isMe 
+                        ? 'bg-indigo-600 text-white rounded-tr-none' 
+                        : m.isAi 
+                          ? isDarkMode 
+                            ? 'bg-slate-950 border border-indigo-500/40 text-slate-100 rounded-tl-none' 
+                            : 'bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-tl-none font-semibold'
+                          : isDarkMode 
+                            ? 'bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none' 
+                            : 'bg-slate-100 border border-slate-200 text-slate-950 rounded-tl-none font-semibold'
+                    }`}>
+                      <div className="flex items-center justify-between gap-4 text-[10px] opacity-80 mb-1">
+                        <span className="font-bold">{m.senderName}</span>
+                        <span className="font-mono text-[9px]">{m.timestamp}</span>
+                      </div>
+                      
+                      {/* Render text with formatting */}
+                      <FormattedText text={m.text} className="text-xs" />
+
+                      {isMe && (
+                        <div className="flex justify-end text-[10px] mt-1.5 pt-1 border-t border-white/10">
+                          {renderReadReceipt(m.status, m.timestamp)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Emoji Reaction Chips */}
+                    {hasReactions && (
+                      <div className={`flex flex-wrap gap-1.5 pt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        {m.reactions?.map((r, idx) => {
+                          const userReacted = r.users.includes(user.id);
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleToggleReaction(m.id, r.emoji)}
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold border transition-all ${
+                                userReacted 
+                                  ? 'bg-indigo-600/30 border-indigo-400/60 text-indigo-300 ring-1 ring-indigo-400/30' 
+                                  : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
+                              }`}
+                            >
+                              <span>{r.emoji}</span>
+                              <span className="text-[10px] font-mono">{r.count}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 </div>
               );
             })}
+
+            {/* Real-time typing animation bubble */}
+            {isTyping && (
+              <div className="flex gap-2.5 items-end">
+                <img 
+                  src={activeThread.avatar} 
+                  alt={activeThread.name} 
+                  className="w-7 h-7 rounded-full object-cover shrink-0 ring-2 ring-indigo-500/40" 
+                />
+                <div className="px-4 py-2.5 rounded-2xl rounded-tl-none bg-slate-900 border border-indigo-500/30 text-indigo-300 text-xs flex items-center gap-2 shadow-md">
+                  <span className="text-[11px] font-medium opacity-80">{activeThread.name} is typing</span>
+                  <div className="flex items-center gap-1 pt-0.5">
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Chat Input Bar */}

@@ -59,15 +59,20 @@ export interface UserProfile {
 
 export interface PostComment {
   id: string;
-  author: {
+  postId?: string;
+  authorUid?: string;
+  authorName?: string;
+  authorAvatar?: string;
+  author?: {
     name: string;
-    username: string;
+    username?: string;
     avatar: string;
     verified?: boolean;
   };
-  text: string;
-  createdAt: string;
-  likesCount: number;
+  text?: string;
+  content?: string;
+  createdAt?: string;
+  likesCount?: number;
   isLiked?: boolean;
   replies?: PostComment[];
 }
@@ -114,6 +119,14 @@ export interface SocialPost {
   comments?: PostComment[];
 }
 
+export interface StoryViewer {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  viewedAt: string;
+}
+
 export interface Story {
   id: string;
   author: {
@@ -126,6 +139,7 @@ export interface Story {
   caption?: string;
   hasUnseen?: boolean;
   createdAt: string;
+  seenBy?: StoryViewer[];
 }
 
 export interface Community {
@@ -168,8 +182,10 @@ export interface ChatMessage {
   senderName: string;
   senderAvatar: string;
   text: string;
+  content?: string;
   timestamp: string;
   isAi?: boolean;
+  status?: 'sending' | 'sent' | 'delivered' | 'read';
   mediaUrl?: string;
   codeBlock?: { language: string; code: string };
   reactions?: { emoji: string; count: number; users: string[] }[];
