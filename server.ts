@@ -1,3 +1,6 @@
+import authRoutes from "./routes/auth";
+import postsRoutes from "./routes/posts";
+import db from "./config/db";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -105,9 +108,11 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
-  app.use(express.json({ limit: "25mb" }));
+app.use(express.json({ limit: "25mb" }));
 
-  // Helper to call Gemini AI with multi-model fallback and resilient error handling
+app.use("/api/auth", authRoutes);
+app.use("/api/posts", postsRoutes);
+// Helper to call Gemini AI with multi-model fallback and resilient error handling
   const generateAI = async (
     prompt: string, 
     systemInstruction?: string, 
