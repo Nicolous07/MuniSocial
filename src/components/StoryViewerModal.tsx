@@ -63,7 +63,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
   
   const activeStory = stories[currentIndex] || stories[0];
-  const isAuthor = activeStory?.author.username === user.username || activeStory?.author.name === user.name;
+  const isAuthor = Boolean(activeStory?.author && (activeStory.author.username === user?.username || activeStory.author.name === user?.name));
 
   // Progress state (0 to 100)
   const [progress, setProgress] = useState(0);
@@ -208,15 +208,15 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
     if (onSendDirectMessage) {
       onSendDirectMessage(
-        activeStory.author.username,
-        activeStory.author.name,
-        activeStory.author.avatar,
+        activeStory?.author?.username || 'user',
+        activeStory?.author?.name || 'Creator',
+        activeStory?.author?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
         `Reacted ${emoji} to your story`
       );
     }
 
     if (onShowToast) {
-      onShowToast(`Reaction Sent ${emoji}`, `Shared reaction with @${activeStory.author.username}`, 'info');
+      onShowToast(`Reaction Sent ${emoji}`, `Shared reaction with @${activeStory?.author?.username || 'user'}`, 'info');
     }
 
     setTimeout(() => {
@@ -234,15 +234,15 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
     if (onSendDirectMessage) {
       onSendDirectMessage(
-        activeStory.author.username,
-        activeStory.author.name,
-        activeStory.author.avatar,
+        activeStory?.author?.username || 'user',
+        activeStory?.author?.name || 'Creator',
+        activeStory?.author?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
         `Replying to story: "${activeStory.caption || 'Media'}" - ${messageToSend}`
       );
     }
 
     if (onShowToast) {
-      onShowToast('Reply Delivered! 💬', `Private message sent to ${activeStory.author.name}`, 'success');
+      onShowToast('Reply Delivered! 💬', `Private message sent to ${activeStory?.author?.name || 'Creator'}`, 'success');
     }
 
     triggerEmojiReaction('💬');
@@ -289,7 +289,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     if (onSendDirectMessage) {
       const shareMessage = shareNote.trim() 
         ? `Shared a story: "${activeStory.caption || 'Story'}" — Note: ${shareNote.trim()}`
-        : `Shared a story from @${activeStory.author.username}: "${activeStory.caption || 'Story'}"`;
+        : `Shared a story from @${activeStory?.author?.username || 'user'}: "${activeStory.caption || 'Story'}"`;
 
       onSendDirectMessage(
         targetUser.username,
@@ -361,15 +361,15 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
             <div className="flex items-center gap-2.5">
               <div className="relative w-9 h-9 rounded-full p-0.5 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 shadow-md">
                 <img 
-                  src={activeStory.author.avatar} 
-                  alt={activeStory.author.name} 
+                  src={activeStory?.author?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'} 
+                  alt={activeStory?.author?.name || 'Creator'} 
                   className="w-full h-full rounded-full object-cover" 
                 />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-xs sm:text-sm tracking-tight text-white drop-shadow-sm">{activeStory.author.name}</span>
-                  <span className="text-[10px] text-slate-300 font-mono">@{activeStory.author.username}</span>
+                  <span className="font-bold text-xs sm:text-sm tracking-tight text-white drop-shadow-sm">{activeStory?.author?.name || 'Creator'}</span>
+                  <span className="text-[10px] text-slate-300 font-mono">@{activeStory?.author?.username || 'user'}</span>
                 </div>
                 
                 {/* 24-Hour Expiration Timer */}
@@ -620,7 +620,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
                 <div className="relative flex-1">
                   <input 
                     type="text" 
-                    placeholder={`Send message to @${activeStory.author.username}...`}
+                    placeholder={`Send message to @${activeStory?.author?.username || 'user'}...`}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     onFocus={() => {

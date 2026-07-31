@@ -134,7 +134,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       sharesCount: 0,
       bookmarksCount: 0,
       createdAt: new Date().toISOString(),
-      tags: tags.split(',').map(t => t.trim()),
+      tags: (tags || '').split(',').map(t => t.trim()).filter(Boolean),
       isLiked: true,
       aiScore: 98,
       aiTopic: 'User Created',
@@ -160,7 +160,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           aspectRatio: '9:16',
           views: 1,
           quality: '1080p',
-          audioTrack: 'Original Sound - ' + user.name
+          audioTrack: 'Original Sound - ' + (user?.name || 'Creator')
         }
       } : {}),
       ...(selectedType === 'long_video' ? {

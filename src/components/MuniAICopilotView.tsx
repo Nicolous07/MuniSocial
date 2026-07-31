@@ -110,8 +110,8 @@ export const MuniAICopilotView: React.FC<MuniAICopilotViewProps> = ({
           text: `Hello **${user.name}**! 👋 I am **MuniAI Copilot**, your built-in ecosystem intelligence layer powered by Gemini 3.6 & AI Studio models.
 
 I am deeply integrated into **MuniSocial** and synchronized with your live session:
-- 📍 **Active View**: \`${currentView.toUpperCase()}\`
-- 👤 **Creator Profile**: @${user.username} (${user.role.toUpperCase()})
+- 📍 **Active View**: \`${currentView?.toUpperCase() || 'FEED'}\`
+- 👤 **Creator Profile**: @${user?.username || 'user'} (${user?.role?.toUpperCase() || 'CREATOR'})
 - 🔐 **Security**: Passkey Authenticated
 
 How can I empower your content, analytics, code, or social strategy today?`,
@@ -400,12 +400,12 @@ export const StreamComponent = () => {
 | 💰 **Total Revenue** | **$24,850.00** | **+28.4%** |
 | 👁️ **Monthly Views** | **1.2M** | **+42.1%** |
 | ⏱️ **Watch Time** | **48,200 hrs** | **+18.9%** |
-| ⭐️ **Subscribers** | **${user.followersCount.toLocaleString()}** | **+5,400** |
+| ⭐️ **Subscribers** | **{(user?.followersCount ?? 0).toLocaleString()}** | **+5,400** |
 
 You can cash out your revenue balance anytime directly from the **Creator Studio**!`;
     }
 
-    return `I have analyzed your request regarding **${view.toUpperCase()}**:
+    return `I have analyzed your request regarding **${view?.toUpperCase() || 'GENERAL'}**:
 
 "${query}"
 
@@ -617,7 +617,7 @@ As **MuniAI Copilot**, I am synchronized with your current MuniSocial session. L
               MuniAI Copilot
             </span>
             <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full text-[9px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">
-              {currentView.toUpperCase()}
+              {currentView?.toUpperCase() || 'FEED'}
             </span>
           </div>
         </div>

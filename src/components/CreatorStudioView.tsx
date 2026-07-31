@@ -58,7 +58,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <span className="text-xs font-semibold uppercase">Total Revenue</span>
             <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="font-heading font-extrabold text-2xl text-emerald-400">${analytics.totalRevenue.toLocaleString()}</div>
+          <div className="font-heading font-extrabold text-2xl text-emerald-400">${(analytics?.totalRevenue ?? 0).toLocaleString()}</div>
           <span className="text-[10px] font-mono text-emerald-400 mt-1 block">+18.4% from last month</span>
         </div>
 
@@ -69,7 +69,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <span className="text-xs font-semibold uppercase">Monthly Views</span>
             <Eye className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="font-heading font-extrabold text-2xl text-indigo-300">{(analytics.monthlyViews / 1000000).toFixed(2)}M</div>
+          <div className="font-heading font-extrabold text-2xl text-indigo-300">{((analytics?.monthlyViews ?? 0) / 1000000).toFixed(2)}M</div>
           <span className="text-[10px] font-mono text-indigo-400 mt-1 block">4.89M total impressions</span>
         </div>
 
@@ -80,7 +80,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <span className="text-xs font-semibold uppercase">Watch Hours</span>
             <Clock className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="font-heading font-extrabold text-2xl text-purple-300">{(analytics.watchTimeHours / 1000).toFixed(1)}k hrs</div>
+          <div className="font-heading font-extrabold text-2xl text-purple-300">{((analytics?.watchTimeHours ?? 0) / 1000).toFixed(1)}k hrs</div>
           <span className="text-[10px] font-mono text-purple-400 mt-1 block">Avg retention: 84%</span>
         </div>
 
@@ -91,7 +91,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <span className="text-xs font-semibold uppercase">Subscribers</span>
             <Users className="w-4 h-4 text-pink-400" />
           </div>
-          <div className="font-heading font-extrabold text-2xl text-pink-400">{analytics.subscriberCount.toLocaleString()}</div>
+          <div className="font-heading font-extrabold text-2xl text-pink-400">{(analytics?.subscriberCount ?? 0).toLocaleString()}</div>
           <span className="text-[10px] font-mono text-pink-400 mt-1 block">+12.4k this week</span>
         </div>
 
@@ -112,7 +112,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-slate-300">Ad Revenue Split (70% Creator)</span>
-                <span className="font-mono font-bold text-emerald-400">${analytics.adRevenue.toLocaleString()}</span>
+                <span className="font-mono font-bold text-emerald-400">${(analytics?.adRevenue ?? 0).toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-950 rounded-full h-2">
                 <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '60%' }}></div>
@@ -122,7 +122,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-slate-300">Premium Creator Subscriptions</span>
-                <span className="font-mono font-bold text-indigo-400">${analytics.subscriberRevenue.toLocaleString()}</span>
+                <span className="font-mono font-bold text-indigo-400">${(analytics?.subscriberRevenue ?? 0).toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-950 rounded-full h-2">
                 <div className="bg-indigo-500 h-2 rounded-full" style={{ width: '28%' }}></div>
@@ -132,7 +132,7 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-slate-300">Tips, Stars & Super Chats</span>
-                <span className="font-mono font-bold text-amber-400">${analytics.tipsAndStars.toLocaleString()}</span>
+                <span className="font-mono font-bold text-amber-400">${(analytics?.tipsAndStars ?? 0).toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-950 rounded-full h-2">
                 <div className="bg-amber-500 h-2 rounded-full" style={{ width: '12%' }}></div>
@@ -150,14 +150,14 @@ export const CreatorStudioView: React.FC<CreatorStudioViewProps> = ({
           </h3>
 
           <div className="space-y-2.5">
-            {analytics.topVideos.map((v, idx) => (
+            {(analytics?.topVideos || []).map((v, idx) => (
               <div key={idx} className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs">
                 <div>
                   <h4 className="font-bold text-slate-200 line-clamp-1">{v.title}</h4>
-                  <span className="text-[10px] text-slate-400 font-mono">{v.views.toLocaleString()} views</span>
+                  <span className="text-[10px] text-slate-400 font-mono">{(v?.views ?? 0).toLocaleString()} views</span>
                 </div>
                 <span className="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                  +${v.revenue.toFixed(2)}
+                  +${(v?.revenue ?? 0).toFixed(2)}
                 </span>
               </div>
             ))}

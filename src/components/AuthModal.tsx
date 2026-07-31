@@ -35,6 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   if (!isOpen) return null;
 
@@ -55,8 +56,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleGoogleSignIn = async () => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
     try {
       const user = await signInWithGoogle();
+      if (!user) {
+        setIsSigningIn(false);
+        return;
+      }
       const name = user.displayName || user.email?.split('@')[0] || 'Google User';
       setSuccessMsg(`Authenticated via Google Firebase Auth! Welcome, ${name}.`);
       setTimeout(() => {
@@ -65,8 +72,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }, 1200);
     } catch (err: any) {
-      console.warn('Google Sign In fallback:', err);
-      handleSimulateProvider('Google Account');
+      const isCancellation = 
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        err?.message?.includes('popup-closed-by-user') ||
+        err?.message?.includes('cancelled-popup-request');
+
+      if (!isCancellation) {
+        console.warn('Google Sign In fallback:', err);
+        handleSimulateProvider('Google Account');
+      }
+    } finally {
+      setIsSigningIn(false);
     }
   };
 

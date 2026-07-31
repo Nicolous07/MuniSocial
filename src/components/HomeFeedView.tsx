@@ -217,8 +217,16 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 
   // AI 24h Feed Highlights Derived List
   const aiHighlights = useMemo(() => {
-    return posts.slice(0, 5).map((p, idx) => ({
-      id: `hl_${p.id}`,
+    const seen = new Set<string>();
+    const uniquePosts: SocialPost[] = [];
+    for (const p of posts) {
+      if (p?.id && !seen.has(p.id)) {
+        seen.add(p.id);
+        uniquePosts.push(p);
+      }
+    }
+    return uniquePosts.slice(0, 5).map((p, idx) => ({
+      id: `hl_${p.id}_${idx}`,
       originalPostId: p.id,
       title: idx === 0 
         ? "⚡ Gemini 3.6 Flash Multi-Agent Benchmark" 
@@ -301,7 +309,17 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
       });
     }
 
-    return list;
+    // 4. Unique Deduplication Safeguard
+    const seenIds = new Set<string>();
+    const uniqueList: SocialPost[] = [];
+    for (const item of list) {
+      if (item?.id && !seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        uniqueList.push(item);
+      }
+    }
+
+    return uniqueList;
   }, [posts, feedMode, selectedMood, isSmartSort, bookmarkedPostIds]);
 
   // Virtual Window Calculation for 60 FPS scrolling across thousands of posts
@@ -796,7 +814,13 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
               aria-label="Add a new 24 hour story"
             >
               <div className="relative w-16 h-16 rounded-full p-0.5 border-2 border-dashed border-indigo-500/60 group-hover:border-indigo-400 transition-colors flex items-center justify-center">
-                <img src={user.avatar} alt={user.name} className="w-14 h-14 rounded-full object-cover" />
+                <img 
+                  src={user.avatar} 
+                  alt={user.name} 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                  className="w-14 h-14 rounded-full object-cover" 
+                />
                 <div className="absolute bottom-0 right-0 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center border-2 border-slate-950 text-white text-xs font-bold shadow-md">
                   +
                 </div>
@@ -810,15 +834,21 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                 key={s.id}
                 onClick={() => setActiveStoryId(s.id)}
                 className="flex flex-col items-center gap-1.5 group shrink-0"
-                aria-label={`View story by ${s.author.name}`}
+                aria-label={`View story by ${s.author?.name || 'Creator'}`}
               >
                 <div className={`p-0.5 rounded-full bg-gradient-to-tr ${
                   s.hasUnseen ? 'from-indigo-500 via-purple-500 to-pink-500 ring-2 ring-indigo-500/30' : 'from-slate-300 to-slate-400 dark:from-slate-700 dark:to-slate-800'
                 } group-hover:scale-105 transition-transform`}>
-                  <img src={s.author.avatar} alt={s.author.name} className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-slate-950" />
+                  <img 
+                    src={s.author?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"} 
+                    alt={s.author?.name || 'Creator'} 
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-slate-950" 
+                  />
                 </div>
                 <span className="text-[11px] font-bold text-slate-900 dark:text-slate-300 truncate w-16 text-center">
-                  {s.author.name.split(' ')[0]}
+                  {s.author?.name ? s.author.name.split(' ')[0] : 'Creator'}
                 </span>
               </button>
             ))}
@@ -831,7 +861,13 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
             ? 'bg-slate-900/80 border-slate-800' 
             : 'bg-white border-slate-200/90 shadow-sm'
         }`}>
-          <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0" />
+          <img 
+            src={user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"} 
+            alt={user?.name || 'User'} 
+            referrerPolicy="no-referrer"
+            onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+            className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0" 
+          />
           <button
             onClick={onOpenCreate}
             className={`flex-1 text-left px-4 py-2.5 rounded-2xl border text-xs transition-colors flex items-center justify-between ${
@@ -840,7 +876,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                 : 'bg-slate-100/90 border-slate-200 text-slate-900 hover:text-black font-semibold'
             }`}
           >
-            <span>What's on your mind, {user.name.split(' ')[0]}? Share with MuniAI...</span>
+            <span>What's on your mind, {user?.name ? user.name.split(' ')[0] : 'Creator'}? Share with MuniAI...</span>
             <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           </button>
         </div>
@@ -911,7 +947,13 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                   {/* Author Row */}
                   <div className="flex items-center justify-between mb-3.5">
                     <div className="flex items-center gap-3">
-                      <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-indigo-500/20" />
+                      <img 
+                        src={post.author.avatar} 
+                        alt={post.author.name} 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-indigo-500/20" 
+                      />
                       <div>
                         <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
                           <span className="text-slate-950 dark:text-white">{post.author.name}</span>
@@ -1042,14 +1084,20 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                             );
                           })}
                         </div>
-                        <p className="text-[10px] text-slate-500 text-right">{post.pollDetails.totalVotes.toLocaleString()} votes</p>
+                        <p className="text-[10px] text-slate-500 text-right">{(post.pollDetails?.totalVotes ?? 0).toLocaleString()} votes</p>
                       </div>
                     )}
 
                     {/* Media / Video Preview */}
                     {post.mediaUrls && post.mediaUrls.length > 0 && post.type !== 'short_video' && post.type !== 'long_video' && (
                       <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-3">
-                        <img src={post.mediaUrls[0]} alt="Post media" className="w-full max-h-96 object-cover hover:scale-105 transition-transform duration-300" />
+                        <img 
+                          src={post.mediaUrls[0]} 
+                          alt="Post media" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"; }}
+                          className="w-full max-h-96 object-cover hover:scale-105 transition-transform duration-300" 
+                        />
                       </div>
                     )}
 
@@ -1059,6 +1107,8 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                         <img 
                           src={post.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80'} 
                           alt="Video thumbnail" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800"; }}
                           className="w-full h-64 sm:h-72 object-cover" 
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent flex items-center justify-center">
@@ -1074,7 +1124,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                             {post.videoDetails.duration} • {post.videoDetails.quality}
                           </span>
                           <span className="bg-indigo-600/80 backdrop-blur-md px-2.5 py-1 rounded-full font-mono text-[10px]">
-                            {post.videoDetails.views.toLocaleString()} Views
+                            {(post.videoDetails?.views ?? 0).toLocaleString()} Views
                           </span>
                         </div>
                       </div>

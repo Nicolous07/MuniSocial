@@ -18,9 +18,7 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Candidate models list using official Google GenAI SDK model names
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "imagen-3.0-generate-002"
+  "gemini-3.6-flash"
 ];
 
 // Contextual Intelligent Fallback Generator when API key permissions are restricted (403 PERMISSION_DENIED)
@@ -111,7 +109,19 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
-  app.use(express.json({ limit: "25mb" }));
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+  // Global payload and JSON error handling middleware
+  app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err) {
+      console.error("[Express Server Error]", err?.message || err);
+      return res.status(err.status || 400).json({
+        error: err.message || "Invalid payload format or request size exceeded limit."
+      });
+    }
+    next();
+  });
 
   // Helper to call Gemini AI with multi-model fallback and resilient error handling
   const generateAI = async (
@@ -304,12 +314,12 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI Image Generator & Editor (imagen-3.0-generate-002)
+  // AI Image Generator & Editor (gemini-3.1-flash-lite-image)
   app.post("/api/ai/generate-image", async (req, res) => {
     try {
       const { prompt, resolution = "2K" } = req.body;
       const apiKey = process.env.GEMINI_API_KEY;
-      const selectedModel = "imagen-3.0-generate-002";
+      const selectedModel = "gemini-3.1-flash-lite-image";
 
       if (apiKey) {
         try {
@@ -344,7 +354,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   app.post("/api/ai/generate-video", async (req, res) => {
     try {
       const { prompt, aspectRatio = "16:9" } = req.body;
-      const model = "gemini-2.5-pro";
+      const model = "veo-3.1-lite-generate-preview";
       
       res.json({
         videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
@@ -362,11 +372,11 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     try {
       const { mediaType = "image", prompt } = req.body;
       const analysisPrompt = `Analyze this ${mediaType} for MuniSocial content moderation & engagement insights: ${prompt || 'Identify key objects, aesthetics, and viral potential.'}`;
-      const analysis = await generateAI(analysisPrompt, "You are MuniAI's Multimodal Vision Engine powered by gemini-2.5-pro.");
+      const analysis = await generateAI(analysisPrompt, "You are MuniAI's Multimodal Vision Engine powered by Gemini 3.6 Flash.");
       
       res.json({
         mediaType,
-        model: "gemini-2.5-pro",
+        model: "gemini-3.6-flash",
         analysis,
         aestheticScore: "94/100",
         viralPotential: "High Engagement"
@@ -376,15 +386,15 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI Audio Transcription (Gemini 2.5 Flash)
+  // AI Audio Transcription (Gemini 3.6 Flash)
   app.post("/api/ai/transcribe-audio", async (req, res) => {
     try {
       const transcript = await generateAI(
         "Transcribe this audio recording clearly into text with speaker tags if applicable.", 
-        "You are MuniAI's Speech Transcription Engine powered by gemini-2.5-flash."
+        "You are MuniAI's Speech Transcription Engine powered by Gemini 3.6 Flash."
       );
       res.json({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         transcript: transcript || "Audio transcript successfully processed: 'Hello MuniSocial community! Excited for the new AI features.'"
       });
     } catch (err: any) {
@@ -392,7 +402,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI High Thinking Mode (Gemini 2.5 Pro with HIGH thinking reasoning)
+  // AI High Thinking Mode (Gemini 3.6 Flash)
   app.post("/api/ai/deep-think", async (req, res) => {
     try {
       const { query } = req.body;
@@ -405,13 +415,8 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
             httpOptions: { headers: { "User-Agent": "aistudio-build" } }
           });
           const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: "gemini-3.6-flash",
             contents: query || "Deep analysis request",
-            config: {
-              thinkingConfig: {
-                thinkingLevel: "HIGH"
-              }
-            } as any
           });
           if (response?.text) {
             return res.json({ thoughtProcess: "Analyzed multiple computational paths with High Thinking mode.", response: response.text });
@@ -423,11 +428,11 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
 
       const deepResponse = await generateAI(
         `[High Thinking Mode Activated]\nAnalyze comprehensively: ${query}`,
-        "You are MuniAI's High Reasoning Engine powered by gemini-2.5-pro in HIGH thinking level mode."
+        "You are MuniAI's High Reasoning Engine powered by Gemini 3.6 Flash."
       );
 
       res.json({
-        model: "gemini-2.5-pro",
+        model: "gemini-3.6-flash",
         thinkingLevel: "HIGH",
         thoughtProcess: "Evaluated architecture, security protocols, edge network performance, and user impact.",
         response: deepResponse
@@ -443,32 +448,78 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   // Persistent File Storage Path for Server-Side Database
   const dbFilePath = path.join(process.cwd(), "posts_db.json");
 
-  // Load or initialize persistent posts database
-  const getStoredDb = () => {
+  // Initial seed posts to ensure the feed is rich and never blank on first launch
+  const initialSeedPosts = [
+    {
+      id: "reel_seed_1",
+      author: {
+        id: "usr_muni_ai",
+        name: "MuniAI Official",
+        username: "munisocial_ai",
+        avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200",
+        verified: true
+      },
+      type: "short",
+      content: "🚀 Welcome to MuniSocial Reels! Powered by 4K HDR streaming & Gemini 3.6 Flash AI Co-pilot.",
+      mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600",
+      tags: ["MuniSocial", "Reels", "AI"],
+      likesCount: 1240,
+      commentsCount: 38,
+      repostsCount: 15,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "reel_seed_2",
+      author: {
+        id: "usr_tech",
+        name: "Elena Rostova",
+        username: "elenacodes",
+        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+        verified: true
+      },
+      type: "short",
+      content: "✨ High-performance microservices with Express & React 19! #DevLife #CloudRun",
+      mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600",
+      tags: ["Code", "TypeScript", "Reels"],
+      likesCount: 890,
+      commentsCount: 19,
+      repostsCount: 7,
+      createdAt: new Date().toISOString()
+    }
+  ];
+
+  // In-Memory Database Store with Disk Persistence Fallback
+  let inMemoryDb: { posts: any[]; comments: Record<string, any[]> } = (() => {
     try {
       if (fs.existsSync(dbFilePath)) {
         const raw = fs.readFileSync(dbFilePath, "utf-8");
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.posts) && parsed.posts.length > 0) {
+          return parsed;
+        }
       }
     } catch (e) {
-      console.error("Error loading database file:", e);
+      console.warn("[MuniSocial DB] Failed to read db file, initializing in-memory store:", e);
     }
-    return { posts: [], comments: {} };
-  };
+    return { posts: initialSeedPosts, comments: {} };
+  })();
 
-  const saveStoredDb = (data: { posts: any[]; comments: Record<string, any[]> }) => {
+  const syncDbToDisk = () => {
     try {
-      fs.writeFileSync(dbFilePath, JSON.stringify(data, null, 2), "utf-8");
+      fs.writeFileSync(dbFilePath, JSON.stringify(inMemoryDb, null, 2), "utf-8");
     } catch (e) {
-      console.error("Error saving database file:", e);
+      console.error("[MuniSocial DB] Error persisting database to disk:", e);
     }
   };
 
   // GET /api/posts - Fetch all saved posts and videos
   app.get("/api/posts", (_req, res) => {
     try {
-      const dbData = getStoredDb();
-      res.json({ success: true, posts: dbData.posts });
+      res.status(200).json({ success: true, posts: inMemoryDb.posts });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || "Failed to fetch posts" });
     }
@@ -477,9 +528,8 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   // GET /api/videos - Fetch video reels and shorts
   app.get("/api/videos", (_req, res) => {
     try {
-      const dbData = getStoredDb();
-      const videos = dbData.posts.filter((p: any) => p.type === "short" || p.type === "video" || !!p.videoUrl);
-      res.json({ success: true, videos });
+      const videos = inMemoryDb.posts.filter((p: any) => p.type === "short" || p.type === "short_video" || p.type === "video" || !!p.videoUrl);
+      res.status(200).json({ success: true, videos });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || "Failed to fetch videos" });
     }
@@ -489,11 +539,10 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   app.post("/api/posts", (req, res) => {
     try {
       const post = req.body;
-      if (!post.content && !post.mediaUrl && !post.videoUrl) {
-        return res.status(400).json({ error: "Post must contain content or media" });
+      if (!post || (!post.content && !post.mediaUrl && !post.videoUrl)) {
+        return res.status(400).json({ error: "Post must contain content or media URL" });
       }
 
-      const dbData = getStoredDb();
       const newPost = {
         id: post.id || `post_${Date.now()}`,
         author: post.author || {
@@ -503,7 +552,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
           avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
           verified: true
         },
-        type: post.type || "article",
+        type: post.type || (post.videoUrl ? "short" : "article"),
         content: post.content || "",
         mediaUrl: post.mediaUrl || null,
         videoUrl: post.videoUrl || null,
@@ -515,12 +564,13 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
         createdAt: new Date().toISOString()
       };
 
-      dbData.posts.unshift(newPost);
-      saveStoredDb(dbData);
+      inMemoryDb.posts.unshift(newPost);
+      syncDbToDisk();
 
-      res.status(201).json({ success: true, post: newPost });
+      return res.status(201).json({ success: true, post: newPost });
     } catch (err: any) {
-      res.status(500).json({ error: err?.message || "Failed to save post" });
+      console.error("[API /api/posts Error]:", err);
+      return res.status(500).json({ error: err?.message || "Failed to save post" });
     }
   });
 
@@ -528,11 +578,10 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   app.get("/api/posts/:id/comments", (req, res) => {
     try {
       const { id } = req.params;
-      const dbData = getStoredDb();
-      const comments = dbData.comments[id] || [];
-      res.json({ success: true, comments });
+      const comments = inMemoryDb.comments[id] || [];
+      return res.status(200).json({ success: true, comments });
     } catch (err: any) {
-      res.status(500).json({ error: err?.message || "Failed to fetch comments" });
+      return res.status(500).json({ error: err?.message || "Failed to fetch comments" });
     }
   });
 
@@ -541,13 +590,12 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     try {
       const { id } = req.params;
       const { content, authorName, authorAvatar } = req.body;
-      if (!content) {
+      if (!content || typeof content !== "string" || !content.trim()) {
         return res.status(400).json({ error: "Comment content is required" });
       }
 
-      const dbData = getStoredDb();
-      if (!dbData.comments[id]) {
-        dbData.comments[id] = [];
+      if (!inMemoryDb.comments[id]) {
+        inMemoryDb.comments[id] = [];
       }
 
       const newComment = {
@@ -555,23 +603,22 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
         postId: id,
         authorName: authorName || "Alex Rivera",
         authorAvatar: authorAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-        content,
+        content: content.trim(),
         likesCount: 0,
         createdAt: new Date().toISOString()
       };
 
-      dbData.comments[id].push(newComment);
+      inMemoryDb.comments[id].push(newComment);
 
-      // Increment comment count on post
-      const targetPost = dbData.posts.find((p: any) => p.id === id);
+      const targetPost = inMemoryDb.posts.find((p: any) => p.id === id);
       if (targetPost) {
         targetPost.commentsCount = (targetPost.commentsCount || 0) + 1;
       }
 
-      saveStoredDb(dbData);
-      res.status(201).json({ success: true, comment: newComment });
+      syncDbToDisk();
+      return res.status(201).json({ success: true, comment: newComment });
     } catch (err: any) {
-      res.status(500).json({ error: err?.message || "Failed to save comment" });
+      return res.status(500).json({ error: err?.message || "Failed to save comment" });
     }
   });
 
@@ -581,39 +628,36 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
       const { id } = req.params;
       const { incrementBy } = req.body;
 
-      const dbData = getStoredDb();
-      const targetPost = dbData.posts.find((p: any) => p.id === id);
+      const targetPost = inMemoryDb.posts.find((p: any) => p.id === id);
       if (targetPost) {
         targetPost.likesCount = Math.max(0, (targetPost.likesCount || 0) + (incrementBy || 1));
-        saveStoredDb(dbData);
+        syncDbToDisk();
+        return res.status(200).json({ success: true, likesCount: targetPost.likesCount });
       }
 
-      res.json({ success: true, likesCount: targetPost?.likesCount || 0 });
+      return res.status(404).json({ error: "Post not found" });
     } catch (err: any) {
-      res.status(500).json({ error: err?.message || "Failed to update like count" });
+      return res.status(500).json({ error: err?.message || "Failed to update like count" });
     }
   });
 
-  // File & Video Upload API Endpoint (Base64 / Multipart / Storage Proxy)
+  // File & Video Upload API Endpoint (Base64 Buffer / Storage Proxy)
   app.post("/api/upload-video", (req, res) => {
     try {
       const { fileName, fileData, title, description, category } = req.body;
-      if (!fileData) {
-        return res.status(400).json({ error: "No video payload provided" });
+      if (!fileData || typeof fileData !== "string") {
+        return res.status(400).json({ error: "No video payload provided or invalid format" });
       }
 
       const ext = path.extname(fileName || "video.mp4") || ".mp4";
       const safeName = `video_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
       const filePath = path.join(uploadsDir, safeName);
 
-      // Save base64 video buffer to disk
       const base64Data = fileData.replace(/^data:[^;]+;base64,/, "");
       fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
 
       const url = `/uploads/${safeName}`;
 
-      // Save to Database as a Video Reel post
-      const dbData = getStoredDb();
       const videoPost = {
         id: `reel_${Date.now()}`,
         author: {
@@ -635,10 +679,10 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
         createdAt: new Date().toISOString()
       };
 
-      dbData.posts.unshift(videoPost);
-      saveStoredDb(dbData);
+      inMemoryDb.posts.unshift(videoPost);
+      syncDbToDisk();
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         url,
         fileName: safeName,
@@ -647,7 +691,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
       });
     } catch (err: any) {
       console.error("Video Upload Error:", err);
-      res.status(500).json({ error: err?.message || "Failed to process video upload" });
+      return res.status(500).json({ error: err?.message || "Failed to process video upload" });
     }
   });
 
@@ -655,22 +699,21 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   app.post("/api/upload", (req, res) => {
     try {
       const { fileName, fileData } = req.body;
-      if (!fileData) {
-        return res.status(400).json({ error: "No file data provided" });
+      if (!fileData || typeof fileData !== "string") {
+        return res.status(400).json({ error: "No file data provided or invalid format" });
       }
 
       const safeName = `${Date.now()}_${(fileName || "upload.png").replace(/[^a-zA-Z0-9.-]/g, "_")}`;
       const filePath = path.join(uploadsDir, safeName);
 
-      // Handle base64 string
       const base64Data = fileData.replace(/^data:[^;]+;base64,/, "");
       fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
 
       const url = `/uploads/${safeName}`;
-      res.json({ success: true, url, fileName: safeName });
+      return res.status(200).json({ success: true, url, fileName: safeName });
     } catch (err: any) {
       console.error("Upload Error:", err);
-      res.status(500).json({ error: err?.message || "Failed to upload file" });
+      return res.status(500).json({ error: err?.message || "Failed to upload file" });
     }
   });
 

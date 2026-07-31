@@ -137,7 +137,7 @@ export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
                 4K Ultra HD • HDR 10-bit
               </span>
               <span className="bg-indigo-600/80 backdrop-blur-md px-3 py-1 rounded-full font-mono text-xs">
-                {activeVideo.videoDetails?.views.toLocaleString() || '128,900'} Views
+                {(activeVideo.videoDetails?.views ?? 128900).toLocaleString()} Views
               </span>
             </div>
           </div>
@@ -158,7 +158,7 @@ export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
                     <span>{activeVideo.author.name}</span>
                     {activeVideo.author.verified && <ShieldCheck className="w-4 h-4 text-indigo-400" />}
                   </div>
-                  <span className="text-xs text-slate-400">{activeVideo.author.followersCount?.toLocaleString() || '520K'} Subscribers</span>
+                  <span className="text-xs text-slate-400">{(activeVideo.author?.followersCount ?? 520000).toLocaleString()} Subscribers</span>
                 </div>
                 <button className="ml-3 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md">
                   Subscribe
@@ -223,7 +223,7 @@ export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
         </div>
 
         {/* Live Chat & Super Chats Column */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-4 hidden lg:block">
           
           <div className={`p-5 rounded-3xl border flex flex-col justify-between h-[520px] ${
             isDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'

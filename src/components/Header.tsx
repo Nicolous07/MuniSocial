@@ -871,7 +871,13 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={() => setShowNotifications(false)}
                       className="flex gap-2.5 text-xs p-2 rounded-xl border transition-colors bg-slate-800/40 border-slate-800 hover:bg-slate-800 cursor-pointer"
                     >
-                      <img src={n.actor.avatar} alt={n.actor.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      <img 
+                        src={n.actor.avatar} 
+                        alt={n.actor.name} 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                        className="w-7 h-7 rounded-full object-cover shrink-0" 
+                      />
                       <div className="flex-1">
                         <p className="text-slate-200">
                           <span className="font-bold text-white">{n.actor.name}</span>{' '}
@@ -896,6 +902,8 @@ export const Header: React.FC<HeaderProps> = ({
               <img 
                 src={user.avatar} 
                 alt={user.name} 
+                referrerPolicy="no-referrer"
+                onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
                 className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover ring-1 ring-indigo-500/30"
               />
               <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block mx-0.5" />
@@ -906,10 +914,10 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="absolute right-0 mt-2 w-60 rounded-2xl border shadow-2xl p-2 z-50 bg-slate-900 border-slate-800 text-slate-100">
                 <div className="p-2.5 border-b border-slate-800 mb-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-xs text-white">
-                    <span>{user.name}</span>
-                    {user.verified && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />}
+                    <span>{user?.name || 'Creator'}</span>
+                    {user?.verified && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />}
                   </div>
-                  <p className="text-[11px] text-slate-400">@{user.username}</p>
+                  <p className="text-[11px] text-slate-400">@{user?.username || 'user'}</p>
                 </div>
                 
                 <div className="space-y-1">

@@ -286,7 +286,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   ];
 
   const exportData = (type: 'PDF' | 'Excel' | 'CSV') => {
-    notify('Report Export Triggered', `Generating ${type} file download for ${activeTab.toUpperCase()}`, 'info');
+    notify('Report Export Triggered', `Generating ${type} file download for ${activeTab?.toUpperCase() || ''}`, 'info');
   };
 
   return (
@@ -316,7 +316,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <p className="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
               <span>30 Full-Stack Management Modules</span>
               <span>•</span>
-              <span>Operator: <strong className="text-indigo-400 font-bold">@{user.username} ({user.role.toUpperCase()})</strong></span>
+              <span>Operator: <strong className="text-indigo-400 font-bold">@{user?.username || 'admin'} ({user?.role?.toUpperCase() || 'ADMIN'})</strong></span>
             </p>
           </div>
         </div>
@@ -372,7 +372,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <div className="flex items-center gap-2 min-w-0">
             <Sliders className="w-4 h-4 text-indigo-400 shrink-0" />
             <span className="text-xs font-bold text-slate-200 truncate">
-              Active: <strong className="text-indigo-300 font-mono">{activeTab.toUpperCase()}</strong>
+              Active: <strong className="text-indigo-300 font-mono">{activeTab?.toUpperCase() || ''}</strong>
             </span>
           </div>
 
@@ -809,9 +809,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   <tbody className="divide-y divide-slate-800/60 font-medium">
                     {adminUsersList
                       .filter(u => {
-                        const matchesSearch = u.name.toLowerCase().includes(userSearchFilter.toLowerCase()) || 
-                                              u.email.toLowerCase().includes(userSearchFilter.toLowerCase()) || 
-                                              u.username.toLowerCase().includes(userSearchFilter.toLowerCase());
+                        const matchesSearch = (u.name || '').toLowerCase().includes(userSearchFilter.toLowerCase()) || 
+                                              (u.email || '').toLowerCase().includes(userSearchFilter.toLowerCase()) || 
+                                              (u.username || '').toLowerCase().includes(userSearchFilter.toLowerCase());
                         const matchesRole = selectedUserRole === 'all' || u.role === selectedUserRole;
                         return matchesSearch && matchesRole;
                       })
@@ -1226,21 +1226,77 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           {/* 12. AI MANAGEMENT (MUNIAI ENGINE) */}
           {activeTab === 'ai-management' && (
             <div className="space-y-4">
-              <h2 className="font-heading font-extrabold text-xl">12. MuniAI Engine & Model Hub</h2>
-              <p className="text-xs text-slate-400">Manage Gemini 3.6 Flash, system instructions, token quotas, and knowledge base grounding</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-heading font-extrabold text-xl">12. MuniAI Engine & Model Hub</h2>
+                  <p className="text-xs text-slate-400">Manage Gemini 3.6 Flash, system instructions, token quotas, and knowledge base grounding</p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0 w-fit">
+                  ● Gemini 3.6 Flash Active
+                </span>
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
                   <span className="text-xs text-slate-400 font-bold block">Active Model</span>
                   <div className="font-heading font-bold text-sm text-indigo-400">Gemini 3.6 Flash</div>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Sub-second streaming & multimodal grounding</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
                   <span className="text-xs text-slate-400 font-bold block">Token Usage</span>
                   <div className="font-heading font-bold text-sm text-purple-400">14.8M / 100M Tokens</div>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">14.8% monthly quota consumed</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
                   <span className="text-xs text-slate-400 font-bold block">Latency SLA</span>
-                  <div className="font-heading font-bold text-sm text-emerald-400">180ms Response</div>
+                  <div className="font-heading font-bold text-sm text-emerald-400">180ms Avg Response</div>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Edge proxy server active in us-central1</p>
+                </div>
+              </div>
+
+              {/* AI System Prompt & Controls */}
+              <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-indigo-400" /> System Instruction Prompt Configuration
+                  </h3>
+                  <button 
+                    onClick={() => notify('AI Prompt Saved', 'MuniAI System instructions updated successfully', 'success')}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm transition-all"
+                  >
+                    Save System Prompt
+                  </button>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-mono font-bold uppercase text-slate-400 block mb-1.5">
+                    Global Copilot Persona & Grounding Guidelines
+                  </label>
+                  <textarea
+                    rows={4}
+                    defaultValue="You are MuniAI Copilot, the intelligent AI engine powering MuniSocial. Provide empathetic, highly helpful, and accurate assistance for content creation, moderation, community management, and platform navigation."
+                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono leading-relaxed"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono font-bold uppercase text-slate-400 block">Temperature Sampling (0.2 - 1.0)</label>
+                    <input type="range" min="0.2" max="1.0" step="0.05" defaultValue="0.7" className="w-full accent-indigo-500 cursor-pointer" />
+                    <div className="flex justify-between text-[10px] font-mono text-slate-500">
+                      <span>0.2 (Precise)</span>
+                      <span className="text-indigo-400 font-bold">0.7 (Balanced)</span>
+                      <span>1.0 (Creative)</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono font-bold uppercase text-slate-400 block">Google Search Grounding</label>
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                      <span className="text-slate-300 font-medium">Enable Web Search Grounding</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Enabled</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1551,8 +1607,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Admin Account</span>
-                  <div className="font-bold text-white text-sm">{user.name} (@{user.username})</div>
-                  <span className="text-indigo-400 font-mono">{user.role.toUpperCase()}</span>
+                  <div className="font-bold text-white text-sm">{user?.name || 'Admin'} (@{user?.username || 'admin'})</div>
+                  <span className="text-indigo-400 font-mono">{user?.role?.toUpperCase() || 'ADMIN'}</span>
                 </div>
                 <button onClick={() => notify('Passkey Active', 'Passkey security verified for this session', 'success')} className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold">
                   Manage Passkeys & 2FA
@@ -1751,3 +1807,5 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     </div>
   );
 };
+
+export default AdminDashboardView;

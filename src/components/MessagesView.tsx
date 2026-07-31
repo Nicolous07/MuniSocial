@@ -296,9 +296,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   };
 
   const filteredThreads = threads.filter(t => 
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    t.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    (t.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (t.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (t.lastMessage || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const renderReadReceipt = (status?: 'sending' | 'sent' | 'delivered' | 'read', timestamp?: string) => {
@@ -507,15 +507,15 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
           }`}>
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img src={activeThread.avatar} alt={activeThread.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
-                {activeThread.online && (
+                <img src={activeThread?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'} alt={activeThread?.name || 'Chat'} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
+                {activeThread?.online && (
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-950"></span>
                 )}
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-sm text-slate-950 dark:text-white">{activeThread.name}</h3>
-                  {activeThread.verified && <ShieldCheck className="w-4 h-4 text-indigo-400" />}
+                  <h3 className="font-bold text-sm text-slate-950 dark:text-white">{activeThread?.name || 'Conversation'}</h3>
+                  {activeThread?.verified && <ShieldCheck className="w-4 h-4 text-indigo-400" />}
                 </div>
                 <div className="flex items-center gap-2">
                   {isTyping ? (
@@ -529,9 +529,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                     </span>
                   ) : (
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                      {activeThread.isGroup 
-                        ? `Group • ${activeThread.members?.length || 5} members` 
-                        : activeThread.online ? 'Online • Active now' : 'Offline'}
+                      {activeThread?.isGroup 
+                        ? `Group • ${activeThread?.members?.length || 5} members` 
+                        : activeThread?.online ? 'Online • Active now' : 'Offline'}
                     </span>
                   )}
                   <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" title="Read receipts active for this chat">

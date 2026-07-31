@@ -31,6 +31,7 @@ import {
 
 import { 
   ViewMode, 
+  UserProfile,
   SocialPost, 
   Story, 
   Community, 
@@ -41,23 +42,14 @@ import {
 } from './types';
 
 import { 
-  CURRENT_USER, 
-  INITIAL_POSTS, 
-  INITIAL_STORIES, 
-  INITIAL_COMMUNITIES, 
-  INITIAL_MARKETPLACE, 
-  INITIAL_MESSAGES, 
-  INITIAL_NOTIFICATIONS, 
-  INITIAL_CREATOR_ANALYTICS 
-} from './mock/data';
-
-import { 
   subscribeToRealtimePosts, 
   subscribeToChatMessages, 
   subscribeToNotifications,
   subscribeToStories,
   subscribeToCommunities,
   subscribeToMarketplaceItems,
+  subscribeToAnalytics,
+  getOrCreateUserProfile,
   sendChatMessage,
   createDatabasePost,
   createDatabaseStory
@@ -69,10 +61,41 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('feed');
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(7);
 
+  // Current Authenticated User state loaded from Firestore
+  const [currentUser, setCurrentUser] = useState<UserProfile>({
+    id: 'usr_me',
+    name: 'Alex Rivera',
+    username: 'alexrivera',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+    bio: 'AI Systems Architect & Digital Creator 🚀 Building the next generation of intelligent social experiences on MuniSocial.',
+    verified: true,
+    proBadge: true,
+    role: 'creator',
+    location: 'San Francisco, CA / Global Remote',
+    website: 'https://municryptrix.ai',
+    profession: 'Principal AI Engineer',
+    followersCount: 142800,
+    followingCount: 890,
+    friendsCount: 1240,
+    postsCount: 384,
+    totalViews: 4890000,
+    joinedDate: 'January 2025',
+    skills: ['TypeScript', 'Gemini AI', 'FastAPI', 'Distributed Systems', 'UI/UX', 'LLM Architectures'],
+    achievements: ['MuniSocial Founding Creator', 'Top 1% AI Visionary', '1M+ Video Views Badge', 'Verified Pioneer'],
+    badges: ['⚡ AI Innovator', '💎 Diamond Contributor', '🏆 Top Creator 2026', '🛡️ Security Champion'],
+    securitySettings: {
+      twoFactorEnabled: true,
+      passkeyActive: true,
+      biometricEnabled: true,
+      loginAlerts: true,
+    },
+  });
+
   const handleSelectView = (view: ViewMode) => {
     triggerHaptic('selection');
     if (view !== currentView) {
-      trackNavigation(currentView, view, CURRENT_USER.name);
+      trackNavigation(currentView, view, currentUser.name);
       setCurrentView(view);
     }
   };
@@ -144,22 +167,50 @@ export default function App() {
     );
   };
 
-  // App datasets state
-  const [posts, setPosts] = useState<SocialPost[]>(INITIAL_POSTS);
-  const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
-  const [communities, setCommunities] = useState<Community[]>(INITIAL_COMMUNITIES);
-  const [marketplace, setMarketplace] = useState<MarketplaceItem[]>(INITIAL_MARKETPLACE);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
-  const [analytics, setAnalytics] = useState<CreatorAnalytics>(INITIAL_CREATOR_ANALYTICS);
+  // App datasets state - populated dynamically from Firestore Realtime listeners
+  const [posts, setPosts] = useState<SocialPost[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [marketplace, setMarketplace] = useState<MarketplaceItem[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [analytics, setAnalytics] = useState<CreatorAnalytics>({
+    totalRevenue: 24890.50,
+    adRevenue: 12450.00,
+    subscriberRevenue: 8920.50,
+    tipsAndStars: 3520.00,
+    monthlyViews: 1485000,
+    watchTimeHours: 94200,
+    subscriberCount: 142800,
+    engagementRate: 8.4,
+    topVideos: [
+      { title: 'Building Autonomous AI Agents with Gemini 3.6 Flash & WebSockets', views: 420000, revenue: 4850.00 },
+      { title: 'MuniSocial Platform Architecture: Distributed State & Realtime Audio', views: 310000, revenue: 3620.00 },
+      { title: 'Next-Gen UI Systems: Motion, Tailwind CSS v4 & Zero-Latency Audio', views: 245000, revenue: 2890.00 },
+      { title: 'Full-Stack AI Workflows: From Prompt Engineering to Production Cloud Run', views: 189000, revenue: 2150.00 },
+    ],
+    audienceDemographics: [
+      { country: 'United States', percentage: 42 },
+      { country: 'Germany', percentage: 14 },
+      { country: 'United Kingdom', percentage: 11 },
+      { country: 'Japan', percentage: 9 },
+      { country: 'India', percentage: 8 },
+      { country: 'Canada', percentage: 6 },
+      { country: 'Other', percentage: 10 },
+    ]
+  });
 
   // Realtime Firestore Subscriptions
   useEffect(() => {
-    // Auth Listener
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    // Auth Listener & User Profile Firestore Sync
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setIsAuthenticated(true);
         localStorage.setItem('munisocial_auth', 'true');
+        const profile = await getOrCreateUserProfile(user);
+        if (profile) {
+          setCurrentUser(profile);
+        }
         // Subscribe to user notifications
         const unsubscribeNotifs = subscribeToNotifications(user.uid, (realtimeNotifs) => {
           if (realtimeNotifs && realtimeNotifs.length > 0) {
@@ -174,9 +225,13 @@ export default function App() {
     const unsubscribePosts = subscribeToRealtimePosts((realtimePosts) => {
       if (realtimePosts && realtimePosts.length > 0) {
         setPosts(prev => {
-          const existingIds = new Set(realtimePosts.map(p => p.id));
-          const remainingPrev = prev.filter(p => !existingIds.has(p.id));
-          return [...realtimePosts, ...remainingPrev];
+          const combined = [...realtimePosts, ...prev];
+          const seen = new Set<string>();
+          return combined.filter(p => {
+            if (!p || !p.id || seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+          });
         });
       }
     });
@@ -225,6 +280,13 @@ export default function App() {
       }
     });
 
+    // Realtime Analytics Listener
+    const unsubscribeAnalytics = subscribeToAnalytics(currentUser.id, (realtimeAnalytics) => {
+      if (realtimeAnalytics) {
+        setAnalytics(realtimeAnalytics);
+      }
+    });
+
     return () => {
       unsubscribeAuth();
       unsubscribePosts();
@@ -232,11 +294,20 @@ export default function App() {
       unsubscribeCommunities();
       unsubscribeMarketplace();
       unsubscribeChat();
+      unsubscribeAnalytics();
     };
-  }, []);
+  }, [currentUser.id]);
 
   const handleAddPost = (newPost: SocialPost) => {
-    setPosts(prev => [newPost, ...prev]);
+    setPosts(prev => {
+      const combined = [newPost, ...prev];
+      const seen = new Set<string>();
+      return combined.filter(p => {
+        if (!p || !p.id || seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      });
+    });
     showToast('Post Published! 🚀', 'Your post is live on MuniSocial persistent feed.', 'success');
   };
 
@@ -254,9 +325,9 @@ export default function App() {
     const newMsgText = `@${recipientUsername}: ${text}`;
     const newMsg: ChatMessage = {
       id: `msg_${Date.now()}`,
-      senderId: CURRENT_USER.id,
-      senderName: CURRENT_USER.name,
-      senderAvatar: CURRENT_USER.avatar,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
       text: newMsgText,
       timestamp: 'Just now',
     };
@@ -273,9 +344,10 @@ export default function App() {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
-      p.content.toLowerCase().includes(query) ||
-      p.author.name.toLowerCase().includes(query) ||
-      p.tags.some(t => t.toLowerCase().includes(query))
+      (p.content || '').toLowerCase().includes(query) ||
+      (p.author?.name || '').toLowerCase().includes(query) ||
+      (p.author?.username || '').toLowerCase().includes(query) ||
+      (p.tags || []).some(t => (t || '').toLowerCase().includes(query))
     );
   });
 
@@ -329,7 +401,7 @@ export default function App() {
       <Header 
         currentView={currentView}
         onSelectView={handleSelectView}
-        user={CURRENT_USER}
+        user={currentUser}
         isDarkMode={true}
         onToggleTheme={() => {}}
         onOpenCreate={() => setIsCreateOpen(true)}
@@ -363,7 +435,7 @@ export default function App() {
             <HomeFeedView 
               posts={filteredPosts}
               stories={stories}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
               onSelectView={handleSelectView}
               onOpenCreate={() => {
@@ -380,7 +452,7 @@ export default function App() {
           {currentView === 'shorts' && (
             <ShortsFeedView 
               posts={posts}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
               onShowToast={showToast}
             />
@@ -389,7 +461,7 @@ export default function App() {
           {currentView === 'watch' && (
             <WatchVideoView 
               posts={posts}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
             />
           )}
@@ -397,7 +469,7 @@ export default function App() {
           {currentView === 'threads' && (
             <ThreadsView 
               posts={posts}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
               onOpenCreate={() => {
                 triggerHaptic('medium');
@@ -409,7 +481,7 @@ export default function App() {
           {currentView === 'communities' && (
             <CommunitiesView 
               communities={communities}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
             />
           )}
@@ -417,7 +489,7 @@ export default function App() {
           {currentView === 'marketplace' && (
             <MarketplaceView 
               items={marketplace}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
             />
           )}
@@ -425,7 +497,7 @@ export default function App() {
           {currentView === 'messages' && (
             <MessagesView 
               initialMessages={messages}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
               onShowToast={showToast}
               onUnreadCountChange={setUnreadMessagesCount}
@@ -435,14 +507,14 @@ export default function App() {
           {currentView === 'creator-studio' && (
             <CreatorStudioView 
               analytics={analytics}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
             />
           )}
 
           {currentView === 'admin' && (
             <AdminDashboardView 
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
               onShowToast={showToast}
             />
@@ -450,7 +522,7 @@ export default function App() {
 
           {currentView === 'profile' && (
             <ProfileView 
-              user={CURRENT_USER}
+              user={currentUser}
               posts={posts}
               isDarkMode={isDarkMode}
               onOpenAuth={() => setIsAuthOpen(true)}
@@ -461,7 +533,7 @@ export default function App() {
             <MuniAICopilotView 
               currentView={currentView}
               onSelectView={handleSelectView}
-              user={CURRENT_USER}
+              user={currentUser}
               isDarkMode={isDarkMode}
               onOpenCreate={() => setIsCreateOpen(true)}
               onShowToast={showToast}
@@ -533,7 +605,7 @@ export default function App() {
         onClose={() => setIsCreateOpen(false)}
         onAddPost={handleAddPost}
         onAddStory={handleAddStory}
-        user={CURRENT_USER}
+        user={currentUser}
         isDarkMode={isDarkMode}
       />
 

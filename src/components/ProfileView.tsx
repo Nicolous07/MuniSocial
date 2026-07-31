@@ -65,7 +65,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <h1 className="font-heading font-extrabold text-xl sm:text-2xl">{user.name}</h1>
                 {user.verified && <ShieldCheck className="w-5 h-5 text-indigo-400" />}
                 <span className="px-2 py-0.5 text-[10px] font-mono bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/30">
-                  {user.role.toUpperCase()}
+                  {user?.role?.toUpperCase() || 'CREATOR'}
                 </span>
               </div>
               <p className="text-xs text-slate-400">@{user.username} • {user.profession}</p>
@@ -96,10 +96,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
           {/* Stats Bar */}
           <div className="flex items-center gap-6 pt-2 font-mono text-xs border-t border-slate-800/40">
-            <div><span className="font-bold text-white">{user.followersCount.toLocaleString()}</span> <span className="text-slate-400">Followers</span></div>
-            <div><span className="font-bold text-white">{user.followingCount.toLocaleString()}</span> <span className="text-slate-400">Following</span></div>
-            <div><span className="font-bold text-white">{user.friendsCount.toLocaleString()}</span> <span className="text-slate-400">Friends</span></div>
-            <div><span className="font-bold text-white">{user.totalViews.toLocaleString()}</span> <span className="text-slate-400">Total Views</span></div>
+            <div><span className="font-bold text-white">{(user?.followersCount ?? 0).toLocaleString()}</span> <span className="text-slate-400">Followers</span></div>
+            <div><span className="font-bold text-white">{(user?.followingCount ?? 0).toLocaleString()}</span> <span className="text-slate-400">Following</span></div>
+            <div><span className="font-bold text-white">{(user?.friendsCount ?? 0).toLocaleString()}</span> <span className="text-slate-400">Friends</span></div>
+            <div><span className="font-bold text-white">{(user?.totalViews ?? 0).toLocaleString()}</span> <span className="text-slate-400">Total Views</span></div>
           </div>
         </div>
 

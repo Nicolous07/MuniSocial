@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Hash, 
@@ -20,14 +20,74 @@ interface CommunitiesViewProps {
   isDarkMode: boolean;
 }
 
+const DEFAULT_COMMUNITIES: Community[] = [
+  {
+    id: 'comm_1',
+    name: 'AI & Developer Hub',
+    slug: 'ai-developer-hub',
+    description: 'The official community for Gemini 3.6 Flash builders, full-stack engineers, and prompt hackers.',
+    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80',
+    banner: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80',
+    membersCount: 42800,
+    isPrivate: false,
+    category: 'Technology',
+    channels: [
+      { id: 'ch_general', name: 'general-chat', type: 'text' },
+      { id: 'ch_showcase', name: 'project-showcase', type: 'text' },
+      { id: 'ch_ai_lounge', name: 'Voice Lounge', type: 'voice' },
+      { id: 'ch_qa', name: 'q-and-a-forum', type: 'forum' },
+    ],
+    rules: [
+      'Be respectful to all creators and developers.',
+      'No spamming or unauthorized promotional links.',
+      'Keep code discussions constructive and helpful.',
+      'Protect API keys and sensitive environment data.'
+    ]
+  },
+  {
+    id: 'comm_2',
+    name: 'Muni Creators Guild',
+    slug: 'muni-creators-guild',
+    description: 'Connect with video producers, shorts creators, digital artists, and monetization strategists.',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80',
+    membersCount: 28500,
+    isPrivate: false,
+    category: 'Creative',
+    channels: [
+      { id: 'ch_creator_general', name: 'creator-lounge', type: 'text' },
+      { id: 'ch_monetization', name: 'monetization-tips', type: 'text' },
+      { id: 'ch_live_stage', name: 'Live Stage Room', type: 'voice' }
+    ],
+    rules: [
+      'Share original content only.',
+      'Constructive feedback only on creator feedback threads.',
+      'Respect copyright and community standards.'
+    ]
+  }
+];
+
 export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
-  communities,
+  communities = [],
   user,
   isDarkMode
 }) => {
-  const [activeCommunity, setActiveCommunity] = useState<Community>(communities[0]);
-  const [activeChannelId, setActiveChannelId] = useState<string>(communities[0].channels[0].id);
+  const displayCommunities = (communities && communities.length > 0) ? communities : DEFAULT_COMMUNITIES;
+
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string>(displayCommunities[0]?.id || 'comm_1');
+  const activeCommunity = displayCommunities.find(c => c.id === selectedCommunityId) || displayCommunities[0];
+
+  const activeChannels = activeCommunity?.channels || [];
+  const [activeChannelId, setActiveChannelId] = useState<string>(activeChannels[0]?.id || '');
   const [joinedMap, setJoinedMap] = useState<Record<string, boolean>>({ comm_1: true, comm_3: true });
+
+  useEffect(() => {
+    if (activeCommunity?.channels?.length) {
+      if (!activeCommunity.channels.some(ch => ch.id === activeChannelId)) {
+        setActiveChannelId(activeCommunity.channels[0].id);
+      }
+    }
+  }, [activeCommunity, activeChannelId]);
 
   const toggleJoin = (commId: string) => {
     setJoinedMap(prev => ({ ...prev, [commId]: !prev[commId] }));
@@ -62,16 +122,19 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
         {/* Left Community List */}
         <div className="lg:col-span-4 space-y-3">
           <h3 className="font-heading font-bold text-xs uppercase text-slate-400 px-1">Discover & Joined</h3>
-          {communities.map((comm) => {
+          {displayCommunities.map((comm) => {
             const isJoined = joinedMap[comm.id] || false;
-            const isSelected = activeCommunity.id === comm.id;
+            const isSelected = activeCommunity?.id === comm.id;
+            const firstChannelId = comm.channels?.[0]?.id || '';
 
             return (
               <div
                 key={comm.id}
                 onClick={() => {
-                  setActiveCommunity(comm);
-                  setActiveChannelId(comm.channels[0].id);
+                  setSelectedCommunityId(comm.id);
+                  if (firstChannelId) {
+                    setActiveChannelId(firstChannelId);
+                  }
                 }}
                 className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
                   isSelected 
@@ -88,7 +151,7 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
                       <span>{comm.name}</span>
                       {comm.isPrivate ? <Lock className="w-3 h-3 text-amber-400" /> : <Globe className="w-3 h-3 text-emerald-400" />}
                     </h4>
-                    <span className="text-[10px] text-slate-400">{comm.membersCount.toLocaleString()} Members</span>
+                    <span className="text-[10px] text-slate-400">{(comm.membersCount || 0).toLocaleString()} Members</span>
                   </div>
                 </div>
 
@@ -115,11 +178,11 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
           
           {/* Banner */}
           <div className="relative rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 h-36">
-            <img src={activeCommunity.banner} alt="Banner" className="w-full h-full object-cover opacity-60" />
+            <img src={activeCommunity?.banner} alt="Banner" className="w-full h-full object-cover opacity-60" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent p-4 flex items-end justify-between">
               <div>
-                <h2 className="font-heading font-extrabold text-lg text-white">{activeCommunity.name}</h2>
-                <p className="text-xs text-slate-300 line-clamp-1">{activeCommunity.description}</p>
+                <h2 className="font-heading font-extrabold text-lg text-white">{activeCommunity?.name}</h2>
+                <p className="text-xs text-slate-300 line-clamp-1">{activeCommunity?.description}</p>
               </div>
             </div>
           </div>
@@ -128,7 +191,7 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
           <div className={`p-3 rounded-2xl border flex items-center gap-2 overflow-x-auto no-scrollbar ${
             isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'
           }`}>
-            {activeCommunity.channels.map((ch) => {
+            {(activeCommunity?.channels || []).map((ch) => {
               const isSelected = activeChannelId === ch.id;
               return (
                 <button
@@ -153,7 +216,7 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
           }`}>
             <h3 className="font-bold text-xs uppercase text-slate-400">Community Rules & Guidelines</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {activeCommunity.rules.map((rule, idx) => (
+              {(activeCommunity?.rules || []).map((rule, idx) => (
                 <div key={idx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300 flex items-start gap-2">
                   <span className="font-mono text-indigo-400 font-bold">{idx + 1}.</span>
                   <span>{rule}</span>

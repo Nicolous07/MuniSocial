@@ -24,7 +24,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot
 } from "firebase/firestore";
-import { SocialPost, Story, ChatMessage, NotificationItem, PostComment, UserProfile } from "../types";
+import { SocialPost, Story, ChatMessage, NotificationItem, PostComment, UserProfile, CreatorAnalytics, Community, MarketplaceItem } from "../types";
 
 export enum OperationType {
   CREATE = 'create',
@@ -484,4 +484,117 @@ export async function fetchFeedPaginated(lastSnapshot?: QueryDocumentSnapshot<Do
     handleFirestoreError(error, OperationType.LIST, path);
     return { posts: [], lastVisibleDoc: undefined };
   }
+}
+
+// User Profile with Firestore Fallback & Seeding
+export async function getOrCreateUserProfile(firebaseUser: any): Promise<UserProfile> {
+  const uid = firebaseUser?.uid || "usr_me";
+  const userRef = doc(db, "users", uid);
+  
+  try {
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      return { id: userSnap.id, ...userSnap.data() } as UserProfile;
+    }
+
+    const newProfile: UserProfile = {
+      id: uid,
+      name: firebaseUser?.displayName || "Alex Rivera",
+      username: (typeof firebaseUser?.email === "string" && firebaseUser.email.includes("@")) ? firebaseUser.email.split("@")[0] : "alexrivera",
+      avatar: firebaseUser?.photoURL || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+      coverImage: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      bio: "AI Systems Architect & Digital Creator 🚀 Building the next generation of intelligent social experiences on MuniSocial.",
+      verified: true,
+      proBadge: true,
+      role: "creator",
+      location: "San Francisco, CA / Global Remote",
+      website: "https://municryptrix.ai",
+      profession: "Principal AI Engineer",
+      followersCount: 142800,
+      followingCount: 890,
+      friendsCount: 1240,
+      postsCount: 384,
+      totalViews: 4890000,
+      joinedDate: "January 2025",
+      skills: ["TypeScript", "Gemini AI", "FastAPI", "Distributed Systems", "UI/UX", "LLM Architectures"],
+      achievements: ["MuniSocial Founding Creator", "Top 1% AI Visionary", "1M+ Video Views Badge", "Verified Pioneer"],
+      badges: ["⚡ AI Innovator", "💎 Diamond Contributor", "🏆 Top Creator 2026", "🛡️ Security Champion"],
+      securitySettings: {
+        twoFactorEnabled: true,
+        passkeyActive: true,
+        biometricEnabled: true,
+        loginAlerts: true,
+      },
+    };
+
+    await setDoc(userRef, newProfile);
+    return newProfile;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+    return {
+      id: uid,
+      name: firebaseUser?.displayName || "Alex Rivera",
+      username: "alexrivera",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+      coverImage: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      bio: "AI Systems Architect & Digital Creator 🚀 Building the next generation of intelligent social experiences on MuniSocial.",
+      verified: true,
+      proBadge: true,
+      role: "creator",
+      location: "San Francisco, CA",
+      website: "https://municryptrix.ai",
+      profession: "Principal AI Engineer",
+      followersCount: 142800,
+      followingCount: 890,
+      friendsCount: 1240,
+      postsCount: 384,
+      totalViews: 4890000,
+      joinedDate: "January 2025",
+      skills: ["TypeScript", "Gemini AI", "FastAPI"],
+      achievements: ["MuniSocial Founding Creator"],
+      badges: ["⚡ AI Innovator"],
+      securitySettings: { twoFactorEnabled: true, passkeyActive: true, biometricEnabled: true, loginAlerts: true }
+    };
+  }
+}
+
+// Realtime Analytics Listener
+export function subscribeToAnalytics(uid: string, callback: (analytics: CreatorAnalytics) => void) {
+  const analyticsRef = doc(db, "analytics", uid);
+  const defaultAnalytics: CreatorAnalytics = {
+    totalRevenue: 24890.50,
+    adRevenue: 12450.00,
+    subscriberRevenue: 8920.50,
+    tipsAndStars: 3520.00,
+    monthlyViews: 1485000,
+    watchTimeHours: 94200,
+    subscriberCount: 142800,
+    engagementRate: 8.4,
+    topVideos: [
+      { title: "Building Autonomous AI Agents with Gemini 3.6 Flash & WebSockets", views: 420000, revenue: 4850.00 },
+      { title: "MuniSocial Platform Architecture: Distributed State & Realtime Audio", views: 310000, revenue: 3620.00 },
+      { title: "Next-Gen UI Systems: Motion, Tailwind CSS v4 & Zero-Latency Audio", views: 245000, revenue: 2890.00 },
+      { title: "Full-Stack AI Workflows: From Prompt Engineering to Production Cloud Run", views: 189000, revenue: 2150.00 },
+    ],
+    audienceDemographics: [
+      { country: "United States", percentage: 42 },
+      { country: "Germany", percentage: 14 },
+      { country: "United Kingdom", percentage: 11 },
+      { country: "Japan", percentage: 9 },
+      { country: "India", percentage: 8 },
+      { country: "Canada", percentage: 6 },
+      { country: "Other", percentage: 10 },
+    ]
+  };
+
+  return onSnapshot(analyticsRef, (snap) => {
+    if (snap.exists()) {
+      callback(snap.data() as CreatorAnalytics);
+    } else {
+      callback(defaultAnalytics);
+    }
+  }, (err) => {
+    handleFirestoreError(err, OperationType.GET, `analytics/${uid}`);
+    callback(defaultAnalytics);
+  });
 }

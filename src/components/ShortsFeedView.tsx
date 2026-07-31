@@ -89,6 +89,83 @@ const VIRTUAL_GIFTS: GiftItem[] = [
   { id: 'rocket', name: 'Super Rocket', icon: '🚀', cost: 500, color: 'from-purple-500 to-pink-600' },
 ];
 
+const ReelVideoPlayer: React.FC<{
+  videoUrl?: string;
+  mediaUrl?: string;
+  poster?: string;
+  isActive: boolean;
+  isPlaying: boolean;
+  isMuted: boolean;
+  playbackSpeed: number;
+  isHoldingSpeed: boolean;
+}> = ({
+  videoUrl,
+  mediaUrl,
+  poster,
+  isActive,
+  isPlaying,
+  isMuted,
+  playbackSpeed,
+  isHoldingSpeed
+}) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+
+  const src = videoUrl || mediaUrl;
+  const isVideo = !!(videoUrl || (mediaUrl && (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.webm') || mediaUrl.includes('/uploads/video_'))));
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !isVideo || hasError) return;
+
+    v.playbackRate = isHoldingSpeed ? 2.0 : playbackSpeed;
+
+    if (isActive && isPlaying) {
+      const p = v.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          // Playback interrupted or browser policy
+        });
+      }
+    } else {
+      v.pause();
+    }
+  }, [isActive, isPlaying, playbackSpeed, isHoldingSpeed, isVideo, hasError]);
+
+  if (!isVideo || hasError) {
+    return (
+      <img
+        src={poster || mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80'}
+        alt="Short reel video"
+        className={`w-full h-full object-cover transition-transform duration-500 ${isHoldingSpeed ? 'scale-105 filter brightness-110' : ''}`}
+      />
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full">
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        loop
+        playsInline
+        muted={isMuted}
+        onWaiting={() => setIsBuffering(true)}
+        onPlaying={() => setIsBuffering(false)}
+        onError={() => setHasError(true)}
+        className={`w-full h-full object-cover transition-transform duration-500 ${isHoldingSpeed ? 'scale-105 filter brightness-110' : ''}`}
+      />
+      {isBuffering && isActive && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-10">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
   posts,
   user,
@@ -275,6 +352,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
 
     const timer = setInterval(() => {
       setActiveIndex(prevIndex => {
+        if (!reelPosts.length) return 0;
         const nextIndex = (prevIndex + 1) % reelPosts.length;
         if (containerRef.current) {
           const height = containerRef.current.clientHeight;
@@ -429,7 +507,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
     if (onShowToast) {
       onShowToast(
         `Gift Sent! ${selectedGift.icon}`,
-        `Sent ${selectedGift.name} (${selectedGift.cost} Coins) to @${activeGiftReel.author.username}!`,
+        `Sent ${selectedGift.name} (${selectedGift.cost} Coins) to @${activeGiftReel?.author?.username || 'creator'}!`,
         'success'
       );
     }
@@ -545,33 +623,16 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                   className="absolute inset-0 z-0 bg-slate-950 cursor-pointer"
                   onClick={(e) => handleVideoCanvasClick(e, reel.id)}
                 >
-                  {reel.videoUrl || (reel.mediaUrl && (reel.mediaUrl.endsWith('.mp4') || reel.mediaUrl.endsWith('.webm') || reel.mediaUrl.includes('/uploads/video_'))) ? (
-                    <video
-                      src={reel.videoUrl || reel.mediaUrl}
-                      poster={reel.thumbnailUrl || reel.mediaUrls?.[0]}
-                      autoPlay={isPlaying && index === activeIndex}
-                      loop
-                      playsInline
-                      muted={isMuted}
-                      className={`w-full h-full object-cover transition-transform duration-500 ${isHoldingSpeed ? 'scale-105 filter brightness-110' : ''}`}
-                      ref={(el) => {
-                        if (el) {
-                          el.playbackRate = isHoldingSpeed ? 2.0 : playbackSpeed;
-                          if (isPlaying && index === activeIndex) {
-                            el.play().catch(() => {});
-                          } else {
-                            el.pause();
-                          }
-                        }
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={reel.mediaUrls?.[0] || reel.mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80'}
-                      alt="Short reel video"
-                      className={`w-full h-full object-cover transition-transform duration-500 ${isHoldingSpeed ? 'scale-105 filter brightness-110' : ''}`}
-                    />
-                  )}
+                  <ReelVideoPlayer
+                    videoUrl={reel.videoUrl}
+                    mediaUrl={reel.mediaUrl || reel.mediaUrls?.[0]}
+                    poster={reel.thumbnailUrl || reel.mediaUrls?.[0]}
+                    isActive={index === activeIndex}
+                    isPlaying={isPlaying}
+                    isMuted={isMuted}
+                    playbackSpeed={playbackSpeed}
+                    isHoldingSpeed={isHoldingSpeed}
+                  />
                   <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-transparent to-slate-950/90 pointer-events-none" />
                   
                   {/* Persistent Paused Play Button Overlay */}
@@ -1244,7 +1305,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Gift className="w-5 h-5 text-amber-400" />
-                <h3 className="font-heading font-extrabold text-sm">Send Virtual Gift to @{activeGiftReel.author.username}</h3>
+                <h3 className="font-heading font-extrabold text-sm">Send Virtual Gift to @{activeGiftReel?.author?.username || 'creator'}</h3>
               </div>
               <button
                 onClick={() => setActiveGiftReel(null)}
@@ -1295,7 +1356,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Repeat2 className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-heading font-extrabold text-sm">Remix Reel with @{activeRemixReel.author.username}</h3>
+                <h3 className="font-heading font-extrabold text-sm">Remix Reel with @{activeRemixReel?.author?.username || 'creator'}</h3>
               </div>
               <button
                 onClick={() => setActiveRemixReel(null)}
@@ -1333,14 +1394,14 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
             <button
               onClick={() => {
                 if (onShowToast) {
-                  onShowToast('Studio Recording Launched 🎥', `Prepared ${remixMode.toUpperCase()} mode studio session.`, 'success');
+                  onShowToast('Studio Recording Launched 🎥', `Prepared ${remixMode?.toUpperCase() || ''} mode studio session.`, 'success');
                 }
                 setActiveRemixReel(null);
               }}
               className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2"
             >
               <Video className="w-4 h-4" />
-              <span>Launch Studio Camera ({remixMode.toUpperCase()})</span>
+              <span>Launch Studio Camera ({remixMode?.toUpperCase() || ''})</span>
             </button>
           </div>
         </div>
@@ -1371,11 +1432,11 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
             <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[300px]">
               {(commentsMap[activeCommentsReel.id] || []).map((c) => (
                 <div key={c.id} className="flex gap-2.5 text-xs p-2.5 rounded-2xl bg-slate-950/60 border border-slate-800">
-                  <img src={c.author.avatar} alt={c.author.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  <img src={c.author?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'} alt={c.author?.name || 'User'} className="w-7 h-7 rounded-full object-cover shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 font-bold text-slate-200">
-                      <span>@{c.author.username}</span>
-                      {c.author.verified && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 inline" />}
+                      <span>@{c.author?.username || 'user'}</span>
+                      {c.author?.verified && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 inline" />}
                       <span className="text-[10px] text-slate-500 font-normal ml-auto">{c.createdAt}</span>
                     </div>
                     <FormattedText text={c.text} className="text-slate-300 mt-1" />
