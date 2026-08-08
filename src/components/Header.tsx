@@ -24,6 +24,7 @@ import {
   UserCheck,
   Newspaper,
   Flag,
+  Radio,
   Clapperboard,
   Gamepad2,
   CreditCard,
@@ -662,8 +663,16 @@ export const Header: React.FC<HeaderProps> = ({
                       {/* Entertainment Section */}
                       <MenuCategorySection title="Entertainment">
                         <MenuItem 
+                          icon={Radio} 
+                          iconBg="bg-pink-500/20 text-pink-400 border-pink-500/30 animate-pulse"
+                          title="MuniLive (Tango.me)" 
+                          desc="Interactive live stream rooms, PK Battle duels & real-time gifting." 
+                          onClick={() => { onSelectView('live'); setShowEcosystemMenu(false); }} 
+                          searchQuery={menuSearchQuery}
+                        />
+                        <MenuItem 
                           icon={Clapperboard} 
-                          iconBg="bg-pink-500/20 text-pink-400 border-pink-500/30"
+                          iconBg="bg-purple-500/20 text-purple-400 border-purple-500/30"
                           title="Reels" 
                           desc="A Reels destination personalized to your interests and connections." 
                           onClick={() => { onSelectView('shorts'); setShowEcosystemMenu(false); }} 

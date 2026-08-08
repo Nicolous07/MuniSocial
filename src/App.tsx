@@ -5,6 +5,7 @@ import { SidebarNav } from './components/SidebarNav';
 import { HomeFeedView } from './components/HomeFeedView';
 import { ShortsFeedView } from './components/ShortsFeedView';
 import { WatchVideoView } from './components/WatchVideoView';
+import { MuniLiveView } from './components/MuniLiveView';
 import { ThreadsView } from './components/ThreadsView';
 import { CommunitiesView } from './components/CommunitiesView';
 import { MarketplaceView } from './components/MarketplaceView';
@@ -464,6 +465,14 @@ export default function App() {
               posts={posts}
               user={currentUser}
               isDarkMode={isDarkMode}
+            />
+          )}
+
+          {currentView === 'live' && (
+            <MuniLiveView
+              user={currentUser}
+              isDarkMode={isDarkMode}
+              showToast={showToast}
             />
           )}
 

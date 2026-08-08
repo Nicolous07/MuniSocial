@@ -2,6 +2,7 @@ export type ViewMode =
   | 'feed' 
   | 'shorts' 
   | 'watch' 
+  | 'live'
   | 'threads' 
   | 'communities' 
   | 'marketplace' 

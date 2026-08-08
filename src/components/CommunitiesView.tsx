@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   Hash, 
@@ -10,7 +10,9 @@ import {
   Radio, 
   Search,
   Lock,
-  Globe
+  Globe,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Community, UserProfile } from '../types';
 
@@ -80,6 +82,12 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
   const activeChannels = activeCommunity?.channels || [];
   const [activeChannelId, setActiveChannelId] = useState<string>(activeChannels[0]?.id || '');
   const [joinedMap, setJoinedMap] = useState<Record<string, boolean>>({ comm_1: true, comm_3: true });
+  const channelsRef = useRef<HTMLDivElement>(null);
+
+  const scrollChannels = (direction: 'left' | 'right') => {
+    if (!channelsRef.current) return;
+    channelsRef.current.scrollBy({ left: direction === 'left' ? -200 : 200, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (activeCommunity?.channels?.length) {
@@ -188,26 +196,49 @@ export const CommunitiesView: React.FC<CommunitiesViewProps> = ({
           </div>
 
           {/* Channels Row */}
-          <div className={`p-3 rounded-2xl border flex items-center gap-2 overflow-x-auto no-scrollbar ${
-            isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'
+          <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+            isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
           }`}>
-            {(activeCommunity?.channels || []).map((ch) => {
-              const isSelected = activeChannelId === ch.id;
-              return (
-                <button
-                  key={ch.id}
-                  onClick={() => setActiveChannelId(ch.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-all ${
-                    isSelected 
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
-                      : 'bg-slate-950/50 hover:bg-slate-800 text-slate-300'
-                  }`}
-                >
-                  {ch.type === 'voice' ? <Radio className="w-3.5 h-3.5 text-pink-400" /> : <Hash className="w-3.5 h-3.5 text-indigo-400" />}
-                  <span>{ch.name}</span>
-                </button>
-              );
-            })}
+            <button
+              onClick={() => scrollChannels('left')}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors shrink-0"
+              title="Scroll channels left"
+              aria-label="Scroll channels left"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            <div 
+              ref={channelsRef}
+              className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth flex-1 py-0.5"
+            >
+              {(activeCommunity?.channels || []).map((ch) => {
+                const isSelected = activeChannelId === ch.id;
+                return (
+                  <button
+                    key={ch.id}
+                    onClick={() => setActiveChannelId(ch.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-all shrink-0 ${
+                      isSelected 
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
+                        : 'bg-slate-950/50 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                    }`}
+                  >
+                    {ch.type === 'voice' ? <Radio className="w-3.5 h-3.5 text-pink-400" /> : <Hash className="w-3.5 h-3.5 text-indigo-400" />}
+                    <span>{ch.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => scrollChannels('right')}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors shrink-0"
+              title="Scroll channels right"
+              aria-label="Scroll channels right"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Rules & Community Details */}

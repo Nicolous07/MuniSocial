@@ -38,6 +38,8 @@ import {
   Lightbulb,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   ArrowUpRight,
   Smile,
   Clock,
@@ -135,8 +137,11 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
 
-  // Carousel ref for AI Feed Highlights
+  // Carousel refs for horizontal scrollable containers
   const highlightsCarouselRef = useRef<HTMLDivElement>(null);
+  const moodFilterRef = useRef<HTMLDivElement>(null);
+  const feedTabsRef = useRef<HTMLDivElement>(null);
+  const storiesTrayRef = useRef<HTMLDivElement>(null);
 
   // Bookmarks & Likes
   const [likedPostIds, setLikedPostIds] = useState<Record<string, boolean>>({
@@ -266,6 +271,24 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth'
     });
+  };
+
+  // Scroll generic horizontal container
+  const scrollContainer = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right', amount = 220) => {
+    if (!ref.current) return;
+    ref.current.scrollBy({
+      left: direction === 'left' ? -amount : amount,
+      behavior: 'smooth'
+    });
+  };
+
+  // Vertical Page Scroll Helpers
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   };
 
   // Jump smoothly to a post from Highlight Card
@@ -717,111 +740,155 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
         </section>
 
         {/* MOOD FILTER & SMART SORT CONTROLS HEADER */}
-        <div className={`p-3 sm:p-4 rounded-3xl border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 transition-all ${
+        <div className={`p-3 sm:p-4 rounded-3xl border transition-all ${
           isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          {/* Mood Filter Selectors */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Mood Filter Selectors with Scroll Buttons */}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <button
+                onClick={() => scrollContainer(moodFilterRef, 'left', 180)}
+                className="p-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-colors shrink-0 shadow-sm"
+                title="Scroll mood filters left"
+                aria-label="Scroll mood filters left"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <div 
+                ref={moodFilterRef}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+                className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth py-0.5 cursor-grab active:cursor-grabbing max-w-full flex-1"
+              >
+                <span className="text-[10px] font-mono font-bold uppercase text-slate-500 shrink-0 mr-1 flex items-center gap-1 select-none">
+                  <Smile className="w-3.5 h-3.5 text-indigo-400" /> AI Mood:
+                </span>
+                {[
+                  { id: 'all', label: '🌟 All Vibes' },
+                  { id: 'inspiring', label: '⚡ Inspiring' },
+                  { id: 'tech_code', label: '💻 Tech & Code' },
+                  { id: 'relaxing', label: '🧘 Relaxing' },
+                  { id: 'viral_hot', label: '🔥 Viral Hot' }
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => handleMoodChange(m.id as AiMoodFilter)}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all border shrink-0 ${
+                      selectedMood === m.id
+                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                        : isDarkMode
+                          ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                          : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => scrollContainer(moodFilterRef, 'right', 180)}
+                className="p-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-colors shrink-0 shadow-sm"
+                title="Scroll mood filters right"
+                aria-label="Scroll mood filters right"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* AI Smart Sort Toggle */}
+            <button
+              onClick={handleToggleSmartSort}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 shrink-0 ${
+                isSmartSort
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-400/30 shadow-md shadow-indigo-600/30'
+                  : isDarkMode
+                    ? 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                    : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>{isSmartSort ? '✨ Smart Sort: ON' : '🕒 Chronological'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* FEED MODE / FILTER TABS */}
+        <div className={`p-2 rounded-2xl border flex items-center gap-1.5 transition-all relative ${
+          isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <button
+            onClick={() => scrollContainer(feedTabsRef, 'left', 200)}
+            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-colors shrink-0 shadow-sm"
+            title="Scroll tabs left"
+            aria-label="Scroll tabs left"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
           <div 
+            ref={feedTabsRef}
             onWheel={(e) => {
               if (e.deltaY !== 0) {
                 e.currentTarget.scrollLeft += e.deltaY;
               }
             }}
-            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth py-0.5 cursor-grab active:cursor-grabbing max-w-full"
+            className="flex items-center gap-1 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth cursor-grab active:cursor-grabbing flex-1"
           >
-            <span className="text-[10px] font-mono font-bold uppercase text-slate-500 shrink-0 mr-1 flex items-center gap-1 select-none">
-              <Smile className="w-3.5 h-3.5 text-indigo-400" /> AI Mood:
-            </span>
             {[
-              { id: 'all', label: '🌟 All Vibes' },
-              { id: 'inspiring', label: '⚡ Inspiring' },
-              { id: 'tech_code', label: '💻 Tech & Code' },
-              { id: 'relaxing', label: '🧘 Relaxing' },
-              { id: 'viral_hot', label: '🔥 Viral Hot' }
-            ].map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleMoodChange(m.id as AiMoodFilter)}
-                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all border shrink-0 ${
-                  selectedMood === m.id
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
-                    : isDarkMode
-                      ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+              { id: 'for_you', label: 'For You (AI)', icon: Sparkles, badge: 'Recommended' },
+              { id: 'trending', label: 'Trending', icon: Flame, badge: 'Hot' },
+              { id: 'tech_ai', label: 'Tech & Code', icon: Code },
+              { id: 'media', label: 'Reels & Media', icon: Tv },
+              { id: 'bookmarks', label: 'Saved for Later', icon: Bookmark, count: Object.values(bookmarkedPostIds).filter(Boolean).length }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = feedMode === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleModeChange(tab.id as FeedFilterMode)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/30'
+                      : isDarkMode
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                  aria-selected={isActive}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  <span>{tab.label}</span>
+                  {tab.badge && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-indigo-500/20 text-indigo-400'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                  {tab.count !== undefined && tab.count > 0 && (
+                    <span className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {/* AI Smart Sort Toggle */}
           <button
-            onClick={handleToggleSmartSort}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 shrink-0 ${
-              isSmartSort
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-400/30 shadow-md shadow-indigo-600/30'
-                : isDarkMode
-                  ? 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
-            }`}
+            onClick={() => scrollContainer(feedTabsRef, 'right', 200)}
+            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-colors shrink-0 shadow-sm"
+            title="Scroll tabs right"
+            aria-label="Scroll tabs right"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>{isSmartSort ? '✨ Smart Sort: ON' : '🕒 Chronological'}</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
-        </div>
-
-        {/* FEED MODE / FILTER TABS */}
-        <div 
-          onWheel={(e) => {
-            if (e.deltaY !== 0) {
-              e.currentTarget.scrollLeft += e.deltaY;
-            }
-          }}
-          className={`p-2 rounded-2xl border flex items-center gap-1 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth cursor-grab active:cursor-grabbing transition-all ${
-            isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-          }`}
-        >
-          {[
-            { id: 'for_you', label: 'For You (AI)', icon: Sparkles, badge: 'Recommended' },
-            { id: 'trending', label: 'Trending', icon: Flame, badge: 'Hot' },
-            { id: 'tech_ai', label: 'Tech & Code', icon: Code },
-            { id: 'media', label: 'Reels & Media', icon: Tv },
-            { id: 'bookmarks', label: 'Saved for Later', icon: Bookmark, count: Object.values(bookmarkedPostIds).filter(Boolean).length }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = feedMode === tab.id;
-
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleModeChange(tab.id as FeedFilterMode)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/30'
-                    : isDarkMode
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-                aria-selected={isActive}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-indigo-500/20 text-indigo-400'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
         </div>
 
         {/* Stories Tray */}
@@ -835,10 +902,31 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>Stories & Moments</span>
             </h3>
-            <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-mono font-bold">Real-time • 24h Expire</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-mono font-bold hidden sm:inline">Real-time • 24h Expire</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => scrollContainer(storiesTrayRef, 'left', 220)}
+                  className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                  title="Scroll stories left"
+                  aria-label="Scroll stories left"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => scrollContainer(storiesTrayRef, 'right', 220)}
+                  className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                  title="Scroll stories right"
+                  aria-label="Scroll stories right"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
 
           <div 
+            ref={storiesTrayRef}
             onWheel={(e) => {
               if (e.deltaY !== 0) {
                 e.currentTarget.scrollLeft += e.deltaY;
@@ -1559,19 +1647,41 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
             </div>
           )}
 
-          {/* FLOATING CHAT TRIGGER BUTTON */}
-          <button
-            id="floating-chat-button"
-            onClick={() => setIsQuickChatOpen(!isQuickChatOpen)}
-            className="p-3.5 sm:p-4 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white shadow-2xl shadow-indigo-600/50 hover:scale-110 active:scale-95 transition-all flex items-center gap-2 group relative border border-white/20"
-            title="Open Quick Chat / Direct Messages"
-          >
-            <MessageSquare className="w-6 h-6 animate-pulse" />
-            <span className="hidden md:inline font-bold text-xs pr-1">Direct Chat</span>
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-950 animate-bounce shadow-md">
-              2
-            </span>
-          </button>
+          {/* FLOATING PAGE VERTICAL SCROLL NAVIGATION (JUU / CHINI) & CHAT CONTROLS */}
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1.5 p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur-md">
+              <button
+                onClick={scrollToTop}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white transition-all shadow-md group"
+                title="Scroll Juu / Top"
+                aria-label="Scroll to top of page"
+              >
+                <ChevronUp className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
+              </button>
+              <button
+                onClick={scrollToBottom}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white transition-all shadow-md group"
+                title="Scroll Chini / Bottom"
+                aria-label="Scroll to bottom of page"
+              >
+                <ChevronDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+              </button>
+            </div>
+
+            {/* FLOATING CHAT TRIGGER BUTTON */}
+            <button
+              id="floating-chat-button"
+              onClick={() => setIsQuickChatOpen(!isQuickChatOpen)}
+              className="p-3.5 sm:p-4 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white shadow-2xl shadow-indigo-600/50 hover:scale-110 active:scale-95 transition-all flex items-center gap-2 group relative border border-white/20"
+              title="Open Quick Chat / Direct Messages"
+            >
+              <MessageSquare className="w-6 h-6 animate-pulse" />
+              <span className="hidden md:inline font-bold text-xs pr-1">Direct Chat</span>
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-950 animate-bounce shadow-md">
+                2
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
