@@ -3,9 +3,10 @@ import React from 'react';
 interface FormattedTextProps {
   text: string;
   className?: string;
+  inline?: boolean;
 }
 
-export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = '' }) => {
+export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = '', inline = false }) => {
   if (!text) return null;
 
   // Render formatted chunks
@@ -24,6 +25,9 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
       // Triple backtick code block
       if (part.startsWith('```') && part.endsWith('```')) {
         const codeContent = part.slice(3, -3).replace(/^[a-z]+\n/, ''); // trim language identifier if present
+        if (inline) {
+          return <code key={idx} className="font-mono text-[11px] opacity-90">[Code]</code>;
+        }
         return (
           <pre key={idx} className="bg-slate-900 border border-slate-800 text-indigo-300 p-2.5 rounded-xl font-mono text-xs my-1.5 overflow-x-auto">
             <code>{codeContent}</code>
@@ -82,7 +86,7 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
       // Double Asterisk Bold: **text**
       if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
         return (
-          <strong key={idx} className="font-bold text-white">
+          <strong key={idx} className="font-bold">
             {part.slice(2, -2)}
           </strong>
         );
@@ -91,7 +95,7 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
       // Bold: *text*
       if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
         return (
-          <strong key={idx} className="font-bold text-white">
+          <strong key={idx} className="font-bold">
             {part.slice(1, -1)}
           </strong>
         );
@@ -100,7 +104,7 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
       // Italic: _text_
       if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
         return (
-          <em key={idx} className="italic text-slate-200">
+          <em key={idx} className="italic">
             {part.slice(1, -1)}
           </em>
         );
@@ -119,10 +123,19 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, className = 
     });
   };
 
+  if (inline) {
+    const cleanText = text.replace(/\n+/g, ' ');
+    return (
+      <span className={`truncate inline-block max-w-full ${className}`}>
+        {parseLine(cleanText)}
+      </span>
+    );
+  }
+
   const lines = text.split('\n');
 
   return (
-    <div className={`whitespace-pre-wrap leading-relaxed ${className}`}>
+    <div className={`whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed ${className}`}>
       {lines.map((line, lIdx) => (
         <React.Fragment key={lIdx}>
           {parseLine(line)}

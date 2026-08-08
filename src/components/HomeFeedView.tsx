@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { 
   Heart, 
   MessageCircle, 
@@ -42,12 +43,15 @@ import {
   Clock,
   Activity,
   Eye,
-  Sparkle
+  Sparkle,
+  HardDrive,
+  Trash2
 } from 'lucide-react';
 import { SocialPost, Story, UserProfile } from '../types';
 import { StoryViewerModal } from './StoryViewerModal';
 import { filterActiveStories } from '../lib/storyUtils';
 import { togglePostLikeInDb, createPostComment, subscribeToPostComments } from '../lib/dbService';
+import { SavedPostsManager } from './SavedPostsManager';
 
 interface HomeFeedViewProps {
   posts: SocialPost[];
@@ -108,8 +112,8 @@ const SkeletonPostCard: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => 
 );
 
 export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
-  posts,
-  stories,
+  posts = [],
+  stories = [],
   user,
   isDarkMode,
   onSelectView,
@@ -139,8 +143,16 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
     post_1: true,
     post_code_1: true,
   });
-  const [bookmarkedPostIds, setBookmarkedPostIds] = useState<Record<string, boolean>>({
-    post_code_1: true,
+  const [bookmarkedPostIds, setBookmarkedPostIds] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('munisocial_saved_posts');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load saved posts from localStorage', e);
+    }
+    return { post_code_1: true };
   });
   const [repostedIds, setRepostedIds] = useState<Record<string, boolean>>({});
 
@@ -219,7 +231,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
   const aiHighlights = useMemo(() => {
     const seen = new Set<string>();
     const uniquePosts: SocialPost[] = [];
-    for (const p of posts) {
+    for (const p of (posts || [])) {
       if (p?.id && !seen.has(p.id)) {
         seen.add(p.id);
         uniquePosts.push(p);
@@ -239,7 +251,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
         : "🧠 Autonomous Code Reviewer Copilot Integration",
       badge: idx === 0 ? "🔥 #1 Top Highlight" : idx === 1 ? "💻 Code Breakout" : idx === 2 ? "🎬 Viral Reel" : "🤖 AI Research",
       author: p.author,
-      summary: p.videoDetails?.aiSummary || p.content.slice(0, 85) + "...",
+      summary: p.videoDetails?.aiSummary || (p.content ? p.content.slice(0, 85) + "..." : ""),
       keyTakeaway: "Key Takeaway: Gemini 3.6 Flash unlocks instantaneous state updates & 0ms latency code generation.",
       score: p.aiScore || (98 - idx * 2),
       views: p.videoDetails?.views || (14500 + idx * 2800)
@@ -270,28 +282,28 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 
   // Filtered & Sorted Posts memoized
   const displayedPosts = useMemo(() => {
-    let list = [...posts];
+    let list = [...(posts || [])];
 
     // 1. Mood Detection Filter
     if (selectedMood === 'inspiring') {
-      list = list.filter(p => (p.aiScore && p.aiScore >= 88) || p.tags.some(t => ['future', 'growth', 'community', 'mindset', 'tech', 'ai'].includes(t.toLowerCase())));
+      list = list.filter(p => p && ((p.aiScore && p.aiScore >= 88) || (p.tags || []).some(t => ['future', 'growth', 'community', 'mindset', 'tech', 'ai'].includes(t.toLowerCase()))));
     } else if (selectedMood === 'tech_code') {
-      list = list.filter(p => p.type === 'code' || p.aiTopic || p.tags.some(t => ['ai', 'code', 'tech', 'dev', 'software'].includes(t.toLowerCase())));
+      list = list.filter(p => p && (p.type === 'code' || p.aiTopic || (p.tags || []).some(t => ['ai', 'code', 'tech', 'dev', 'software'].includes(t.toLowerCase()))));
     } else if (selectedMood === 'relaxing') {
-      list = list.filter(p => p.type === 'short_video' || p.type === 'long_video' || p.tags.some(t => ['music', 'art', 'relax', 'design', 'vfx'].includes(t.toLowerCase())));
+      list = list.filter(p => p && (p.type === 'short_video' || p.type === 'long_video' || (p.tags || []).some(t => ['music', 'art', 'relax', 'design', 'vfx'].includes(t.toLowerCase()))));
     } else if (selectedMood === 'viral_hot') {
-      list = list.filter(p => (p.aiScore || 0) >= 90 || p.likesCount > 200);
+      list = list.filter(p => p && ((p.aiScore || 0) >= 90 || p.likesCount > 200));
     }
 
     // 2. Feed Mode Filter
     if (feedMode === 'bookmarks') {
-      list = list.filter(p => bookmarkedPostIds[p.id]);
+      list = list.filter(p => p && bookmarkedPostIds[p.id]);
     } else if (feedMode === 'trending') {
-      list.sort((a, b) => (b.aiScore || b.likesCount) - (a.aiScore || a.likesCount));
+      list.sort((a, b) => ((b?.aiScore || b?.likesCount || 0) - (a?.aiScore || a?.likesCount || 0)));
     } else if (feedMode === 'tech_ai') {
-      list = list.filter(p => p.type === 'code' || p.aiTopic || p.tags.some(t => ['ai', 'code', 'tech', 'dev'].includes(t.toLowerCase())));
+      list = list.filter(p => p && (p.type === 'code' || p.aiTopic || (p.tags || []).some(t => ['ai', 'code', 'tech', 'dev'].includes(t.toLowerCase()))));
     } else if (feedMode === 'media') {
-      list = list.filter(p => p.type === 'short_video' || p.type === 'long_video' || (p.mediaUrls && p.mediaUrls.length > 0));
+      list = list.filter(p => p && (p.type === 'short_video' || p.type === 'long_video' || (p.mediaUrls && p.mediaUrls.length > 0)));
     }
 
     // 3. AI Smart Sorting vs Chronological
@@ -389,11 +401,38 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 
   const toggleBookmark = (postId: string) => {
     const isBookmarked = !bookmarkedPostIds[postId];
-    setBookmarkedPostIds(prev => ({ ...prev, [postId]: isBookmarked }));
+    setBookmarkedPostIds(prev => {
+      const updated = { ...prev, [postId]: isBookmarked };
+      if (!isBookmarked) {
+        delete updated[postId];
+      }
+      try {
+        localStorage.setItem('munisocial_saved_posts', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save posts to localStorage', e);
+      }
+      return updated;
+    });
     if (onShowToast) {
       onShowToast(
-        isBookmarked ? 'Saved to Bookmarks 🔖' : 'Removed from Bookmarks',
-        isBookmarked ? 'View all saved posts in your Bookmarks feed filter.' : 'Post unbookmarked.',
+        isBookmarked ? 'Saved for Later 🔖' : 'Removed from Saved Posts',
+        isBookmarked ? 'Post saved to your local storage bookmark collection.' : 'Post removed from your saved collection.',
+        'info'
+      );
+    }
+  };
+
+  const clearAllBookmarks = () => {
+    setBookmarkedPostIds({});
+    try {
+      localStorage.setItem('munisocial_saved_posts', '{}');
+    } catch (e) {
+      console.error('Failed to clear saved posts in localStorage', e);
+    }
+    if (onShowToast) {
+      onShowToast(
+        'Saved Posts Cleared 🧹',
+        'All bookmarked posts have been removed from local storage.',
         'info'
       );
     }
@@ -748,7 +787,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
             { id: 'trending', label: 'Trending', icon: Flame, badge: 'Hot' },
             { id: 'tech_ai', label: 'Tech & Code', icon: Code },
             { id: 'media', label: 'Reels & Media', icon: Tv },
-            { id: 'bookmarks', label: 'Saved Bookmarks', icon: Bookmark, count: Object.keys(bookmarkedPostIds).length }
+            { id: 'bookmarks', label: 'Saved for Later', icon: Bookmark, count: Object.values(bookmarkedPostIds).filter(Boolean).length }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = feedMode === tab.id;
@@ -829,29 +868,37 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
             </button>
 
             {/* Friend Stories */}
-            {activeStories.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setActiveStoryId(s.id)}
-                className="flex flex-col items-center gap-1.5 group shrink-0"
-                aria-label={`View story by ${s.author?.name || 'Creator'}`}
-              >
-                <div className={`p-0.5 rounded-full bg-gradient-to-tr ${
-                  s.hasUnseen ? 'from-indigo-500 via-purple-500 to-pink-500 ring-2 ring-indigo-500/30' : 'from-slate-300 to-slate-400 dark:from-slate-700 dark:to-slate-800'
-                } group-hover:scale-105 transition-transform`}>
-                  <img 
-                    src={s.author?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"} 
-                    alt={s.author?.name || 'Creator'} 
-                    referrerPolicy="no-referrer"
-                    onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-slate-950" 
-                  />
-                </div>
-                <span className="text-[11px] font-bold text-slate-900 dark:text-slate-300 truncate w-16 text-center">
-                  {s.author?.name ? s.author.name.split(' ')[0] : 'Creator'}
-                </span>
-              </button>
-            ))}
+            {activeStories.map((s, idx) => {
+              const sampleEmojis = ['🔥', '❤️', '⚡', '🎉'];
+              const storyBadgeEmoji = sampleEmojis[idx % sampleEmojis.length];
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveStoryId(s.id)}
+                  className="flex flex-col items-center gap-1.5 group shrink-0 relative"
+                  aria-label={`View story by ${s.author?.name || 'Creator'}`}
+                >
+                  <div className={`relative p-0.5 rounded-full bg-gradient-to-tr ${
+                    s.hasUnseen ? 'from-indigo-500 via-purple-500 to-pink-500 ring-2 ring-indigo-500/30' : 'from-slate-300 to-slate-400 dark:from-slate-700 dark:to-slate-800'
+                  } group-hover:scale-105 transition-transform`}>
+                    <img 
+                      src={s.author?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"} 
+                      alt={s.author?.name || 'Creator'} 
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                      className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-slate-950" 
+                    />
+                    {/* Interactive Animated Reaction Badge Indicator */}
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-900 border border-slate-700 text-[10px] flex items-center justify-center shadow-md group-hover:scale-125 transition-transform group-hover:border-indigo-400">
+                      <span className="animate-pulse">{storyBadgeEmoji}</span>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-900 dark:text-slate-300 truncate w-16 text-center">
+                    {s.author?.name ? s.author.name.split(' ')[0] : 'Creator'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -881,8 +928,16 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
           </button>
         </div>
 
-        {/* FEED POSTS STREAM OR SKELETON LOADER */}
-        {isFilterLoading ? (
+        {/* SAVED FOR LATER SECTION */}
+        {feedMode === 'bookmarks' ? (
+          <SavedPostsManager 
+            posts={posts} 
+            isDarkMode={isDarkMode} 
+            user={user} 
+            onBookmarkToggle={toggleBookmark}
+            onShowToast={onShowToast}
+          />
+        ) : isFilterLoading ? (
           <div className="space-y-4 py-2">
             {[1, 2, 3].map((i) => (
               <SkeletonPostCard key={i} isDarkMode={isDarkMode} />
@@ -892,9 +947,15 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
           <div className={`p-8 rounded-3xl border text-center space-y-3 ${
             isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
           }`}>
-            <Bookmark className="w-10 h-10 mx-auto text-slate-500 animate-bounce" />
-            <h3 className="font-bold text-sm text-slate-200">No posts match this mood & filter</h3>
-            <p className="text-xs max-w-sm mx-auto">Try resetting your mood filter to '🌟 All Vibes' or switching back to 'For You (AI)'.</p>
+            <Bookmark className="w-10 h-10 mx-auto text-amber-500 animate-bounce" />
+            <h3 className="font-bold text-sm text-slate-200">
+              {(feedMode as string) === 'bookmarks' ? 'No Saved Posts Yet 🔖' : 'No posts match this mood & filter'}
+            </h3>
+            <p className="text-xs max-w-sm mx-auto">
+              {(feedMode as string) === 'bookmarks' 
+                ? "Click 'Save for Later' on any post in your feed to bookmark it to your dedicated local storage collection!" 
+                : "Try resetting your mood filter to '🌟 All Vibes' or switching back to 'For You (AI)'."}
+            </p>
             <button
               onClick={() => {
                 handleMoodChange('all');
@@ -902,7 +963,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
               }}
               className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md"
             >
-              Reset Filters
+              {(feedMode as string) === 'bookmarks' ? 'Explore Feed' : 'Reset Filters'}
             </button>
           </div>
         ) : (
@@ -911,7 +972,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
             {topSpacerHeight > 0 && <div style={{ height: `${topSpacerHeight}px` }} aria-hidden="true" />}
 
             <div className="space-y-6">
-              {virtualizedPosts.map((post) => {
+              {(virtualizedPosts || [])?.map((post) => {
                 const isLiked = likedPostIds[post.id] || false;
                 const isBookmarked = bookmarkedPostIds[post.id] || false;
                 const isReposted = repostedIds[post.id] || false;
@@ -925,7 +986,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                   <article
                     id={`post-${post.id}`}
                     key={post.id}
-                    className={`relative p-4 sm:p-5 rounded-3xl border transition-all duration-300 ${
+                    className={`relative p-4 sm:p-5 rounded-3xl border transition-all duration-300 overflow-hidden ${
                       isHighlighted ? 'ring-4 ring-indigo-500 shadow-2xl scale-[1.01]' : ''
                     } ${
                       isDarkMode 
@@ -1020,8 +1081,8 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                   )}
 
                   {/* Post Body Content */}
-                  <div className="text-xs sm:text-sm leading-relaxed mb-4 space-y-3">
-                    <p className="whitespace-pre-line text-slate-950 dark:text-slate-100 font-normal">
+                  <div className="text-xs sm:text-sm leading-relaxed mb-4 space-y-3 min-w-0">
+                    <p className="whitespace-pre-line break-words [overflow-wrap:anywhere] text-slate-950 dark:text-slate-100 font-normal">
                       {translatedContent || post.content}
                     </p>
 
@@ -1037,8 +1098,8 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                     {/* Thread Sequence rendered */}
                     {post.type === 'thread' && post.threadSequence && (
                       <div className="space-y-2.5 my-3 pl-3 border-l-2 border-indigo-500/60">
-                        {post.threadSequence.map((item, idx) => (
-                          <p key={idx} className={`p-2.5 rounded-xl border text-xs ${
+                        {post.threadSequence?.map((item, idx) => (
+                          <p key={idx} className={`p-2.5 rounded-xl border text-xs break-words [overflow-wrap:anywhere] ${
                             isDarkMode 
                               ? 'bg-slate-950/50 border-slate-800 text-slate-300' 
                               : 'bg-slate-50 border-slate-200 text-slate-800'
@@ -1071,7 +1132,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                       }`}>
                         <h4 className="font-bold text-xs text-indigo-600 dark:text-indigo-300">{post.pollDetails.question}</h4>
                         <div className="space-y-2">
-                          {post.pollDetails.options.map((opt, idx) => {
+                          {post.pollDetails.options?.map((opt, idx) => {
                             const pct = Math.round((opt.votes / (post.pollDetails?.totalVotes || 1)) * 100);
                             return (
                               <div key={idx} className={`relative overflow-hidden rounded-xl border p-2.5 flex items-center justify-between ${
@@ -1133,7 +1194,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 
                   {/* Hashtags Row */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {post.tags.map((t, idx) => (
+                    {post.tags?.map((t, idx) => (
                       <span key={idx} className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
                         #{t}
                       </span>
@@ -1195,14 +1256,36 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                       <span>{(post.repostsCount + (isReposted ? 1 : 0)).toLocaleString()}</span>
                     </button>
 
-                    <button 
+                    <motion.button 
+                      whileTap={{ scale: 0.85, rotate: isBookmarked ? -6 : 6 }}
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                       onClick={() => toggleBookmark(post.id)}
-                      className={`flex items-center gap-1.5 hover:text-amber-500 transition-colors ${isBookmarked ? 'text-amber-500 font-bold' : ''}`}
-                      aria-label="Save bookmark"
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-colors font-medium border ${
+                        isBookmarked 
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 font-bold shadow-xs ring-1 ring-amber-500/20' 
+                          : isDarkMode 
+                            ? 'border-slate-800 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30' 
+                            : 'border-slate-200 text-slate-600 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-300'
+                      }`}
+                      aria-label="Save for Later"
+                      title={isBookmarked ? "Stored locally in browser for offline viewing" : "Save post for later offline viewing"}
                     >
-                      <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-amber-500 text-amber-500' : ''}`} />
-                      <span>{(post.bookmarksCount + (isBookmarked ? 1 : 0)).toLocaleString()}</span>
-                    </button>
+                      <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-500 text-amber-500' : ''}`} />
+                      <span className="hidden sm:inline">{isBookmarked ? 'Saved' : 'Save for Later'}</span>
+                      <span className="text-[10px] opacity-80 font-mono">({(post.bookmarksCount + (isBookmarked ? 1 : 0)).toLocaleString()})</span>
+
+                      {/* Local Offline Storage Indicator Badge */}
+                      {isBookmarked && (
+                        <span 
+                          className="flex items-center gap-0.5 text-[9px] bg-amber-500/20 text-amber-600 dark:text-amber-300 px-1.5 py-0.2 rounded-full border border-amber-500/30"
+                          title="Stored locally in browser cache for offline access"
+                        >
+                          <HardDrive className="w-2.5 h-2.5 text-amber-500" />
+                          <span className="font-mono text-[8px] uppercase tracking-wider hidden md:inline">Local</span>
+                        </span>
+                      )}
+                    </motion.button>
 
                     <button 
                       onClick={() => {
@@ -1266,17 +1349,17 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
                       {/* Existing Comments */}
                       {post.comments && post.comments.length > 0 && (
                         <div className="space-y-2 mt-3">
-                          {post.comments.map((c) => (
+                          {post.comments?.map((c) => (
                             <div key={c.id} className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                               isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
                             }`}>
                               <img src={c.author.avatar} alt={c.author.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1 font-bold">
-                                  <span className="text-slate-900 dark:text-slate-200">{c.author.name}</span>
-                                  <span className="text-[10px] text-slate-500">@{c.author.username}</span>
+                                  <span className="text-slate-900 dark:text-slate-200 truncate">{c.author.name}</span>
+                                  <span className="text-[10px] text-slate-500 truncate">@{c.author.username}</span>
                                 </div>
-                                <p className="text-slate-700 dark:text-slate-300 mt-0.5">{c.text}</p>
+                                <p className="text-slate-700 dark:text-slate-300 mt-0.5 break-words [overflow-wrap:anywhere]">{c.text}</p>
                               </div>
                             </div>
                           ))}

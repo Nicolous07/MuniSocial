@@ -494,7 +494,18 @@ export async function getOrCreateUserProfile(firebaseUser: any): Promise<UserPro
   try {
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
-      return { id: userSnap.id, ...userSnap.data() } as UserProfile;
+      const data = userSnap.data();
+      return {
+        id: userSnap.id,
+        ...data,
+        securitySettings: {
+          twoFactorEnabled: true,
+          passkeyActive: true,
+          biometricEnabled: true,
+          loginAlerts: true,
+          ...(data.securitySettings || {})
+        }
+      } as UserProfile;
     }
 
     const newProfile: UserProfile = {
@@ -597,4 +608,47 @@ export function subscribeToAnalytics(uid: string, callback: (analytics: CreatorA
     handleFirestoreError(err, OperationType.GET, `analytics/${uid}`);
     callback(defaultAnalytics);
   });
+}
+
+// Sync Saved Posts / Bookmarks to Cloud Firestore
+export async function syncSavedBookmarksToCloud(
+  userUid: string, 
+  savedPostIds: Record<string, boolean>, 
+  savedOrder: string[]
+): Promise<void> {
+  const path = `user_bookmarks/${userUid}`;
+  try {
+    const docRef = doc(db, "user_bookmarks", userUid);
+    await setDoc(docRef, {
+      userId: userUid,
+      savedPostIds,
+      savedOrder,
+      updatedAt: serverTimestamp(),
+      count: Object.values(savedPostIds).filter(Boolean).length
+    }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Fetch Saved Posts / Bookmarks from Cloud Firestore
+export async function fetchSavedBookmarksFromCloud(
+  userUid: string
+): Promise<{ savedPostIds: Record<string, boolean>; savedOrder: string[] } | null> {
+  const path = `user_bookmarks/${userUid}`;
+  try {
+    const docRef = doc(db, "user_bookmarks", userUid);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        savedPostIds: data.savedPostIds || {},
+        savedOrder: data.savedOrder || []
+      };
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
 }

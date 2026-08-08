@@ -25,12 +25,12 @@ interface WatchVideoViewProps {
 }
 
 export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
-  posts,
+  posts = [],
   user,
   isDarkMode
 }) => {
-  const watchPosts = posts.filter(p => p.type === 'long_video' || p.videoDetails?.aspectRatio === '16:9');
-  const activeVideo = watchPosts[0] || posts[2] || posts[0];
+  const watchPosts = (posts || []).filter(p => p && (p.type === 'long_video' || p.videoDetails?.aspectRatio === '16:9'));
+  const activeVideo = watchPosts[0] || (posts || [])[2] || (posts || [])[0];
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeChapter, setActiveChapter] = useState(0);
@@ -103,10 +103,10 @@ export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
           
           {/* Main Video Screen Frame */}
           <div className="relative rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video shadow-2xl group">
-            {activeVideo.videoUrl || (activeVideo.mediaUrl && (activeVideo.mediaUrl.endsWith('.mp4') || activeVideo.mediaUrl.endsWith('.webm') || activeVideo.mediaUrl.includes('/uploads/video_'))) ? (
+            {(activeVideo as any).videoUrl || ((activeVideo as any).mediaUrl && ((activeVideo as any).mediaUrl.endsWith('.mp4') || (activeVideo as any).mediaUrl.endsWith('.webm') || (activeVideo as any).mediaUrl.includes('/uploads/video_'))) ? (
               <video 
-                src={activeVideo.videoUrl || activeVideo.mediaUrl}
-                poster={activeVideo.thumbnailUrl || activeVideo.mediaUrls?.[0]}
+                src={(activeVideo as any).videoUrl || (activeVideo as any).mediaUrl}
+                poster={(activeVideo as any).thumbnailUrl || activeVideo.mediaUrls?.[0]}
                 controls
                 autoPlay={isPlaying}
                 className="w-full h-full object-contain bg-black"
@@ -114,7 +114,7 @@ export const WatchVideoView: React.FC<WatchVideoViewProps> = ({
             ) : (
               <>
                 <img 
-                  src={activeVideo.mediaUrls?.[0] || activeVideo.mediaUrl || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'} 
+                  src={activeVideo.mediaUrls?.[0] || (activeVideo as any).mediaUrl || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'} 
                   alt="Video stream" 
                   className="w-full h-full object-cover"
                 />

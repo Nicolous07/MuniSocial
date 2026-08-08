@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { 
   User, 
   ShieldCheck, 
@@ -14,31 +15,108 @@ import {
   CheckCircle2,
   Edit,
   Flame,
-  Zap
+  Zap,
+  Bookmark,
+  HardDrive,
+  Trash2,
+  Heart,
+  MessageCircle,
+  X
 } from 'lucide-react';
 import { UserProfile, SocialPost } from '../types';
+import { SavedPostsManager } from './SavedPostsManager';
 
 interface ProfileViewProps {
   user: UserProfile;
   posts: SocialPost[];
   isDarkMode: boolean;
   onOpenAuth: () => void;
+  onShowToast?: (title: string, message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   user,
-  posts,
+  posts = [],
   isDarkMode,
-  onOpenAuth
+  onOpenAuth,
+  onShowToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'security'>('posts');
-  const userPosts = posts.filter(p => p.author.id === user.id || p.author.username === user.username);
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'achievements' | 'security'>('posts');
+  const userPosts = (posts || []).filter(p => p && p.author && (p.author.id === user?.id || p.author.username === user?.username));
 
-  const [secState, setSecState] = useState(user.securitySettings);
+  const defaultSecurity = {
+    twoFactorEnabled: true,
+    passkeyActive: true,
+    biometricEnabled: true,
+    loginAlerts: true
+  };
 
-  const toggle2FA = () => setSecState(prev => ({ ...prev, twoFactorEnabled: !prev.twoFactorEnabled }));
-  const togglePasskey = () => setSecState(prev => ({ ...prev, passkeyActive: !prev.passkeyActive }));
-  const toggleBio = () => setSecState(prev => ({ ...prev, biometricEnabled: !prev.biometricEnabled }));
+  const [secState, setSecState] = useState(() => ({
+    ...defaultSecurity,
+    ...(user?.securitySettings || {})
+  }));
+
+  useEffect(() => {
+    if (user?.securitySettings) {
+      setSecState(prev => ({
+        ...defaultSecurity,
+        ...(prev || {}),
+        ...user.securitySettings
+      }));
+    }
+  }, [user?.securitySettings]);
+
+  // Saved Posts state retrieved from localStorage
+  const [savedPostIds, setSavedPostIds] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('munisocial_saved_posts');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load saved posts in ProfileView', e);
+    }
+    return { post_code_1: true };
+  });
+
+  useEffect(() => {
+    if (activeTab === 'saved') {
+      try {
+        const saved = localStorage.getItem('munisocial_saved_posts');
+        if (saved) {
+          setSavedPostIds(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [activeTab]);
+
+  const savedPosts = posts.filter(p => savedPostIds[p.id]);
+
+  const removeSavedPost = (postId: string) => {
+    setSavedPostIds(prev => {
+      const updated = { ...prev };
+      delete updated[postId];
+      try {
+        localStorage.setItem('munisocial_saved_posts', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to update localStorage', e);
+      }
+      return updated;
+    });
+  };
+
+  const clearAllSavedPosts = () => {
+    setSavedPostIds({});
+    try {
+      localStorage.setItem('munisocial_saved_posts', '{}');
+    } catch (e) {
+      console.error('Failed to clear localStorage', e);
+    }
+  };
+
+  const toggle2FA = () => setSecState(prev => ({ ...defaultSecurity, ...prev, twoFactorEnabled: !prev?.twoFactorEnabled }));
+  const togglePasskey = () => setSecState(prev => ({ ...defaultSecurity, ...prev, passkeyActive: !prev?.passkeyActive }));
+  const toggleBio = () => setSecState(prev => ({ ...defaultSecurity, ...prev, biometricEnabled: !prev?.biometricEnabled }));
 
   return (
     <div className="max-w-5xl mx-auto py-4 px-2 sm:px-4 space-y-6">
@@ -86,11 +164,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         {/* Bio & Links */}
         <div className="px-6 pb-6 pt-2 border-t border-slate-800/60 space-y-3 text-xs">
-          <p className="text-slate-300 leading-relaxed font-sans">{user.bio}</p>
+          <p className="text-slate-300 leading-relaxed font-sans break-words [overflow-wrap:anywhere]">{user.bio}</p>
 
           <div className="flex flex-wrap items-center gap-4 text-slate-400 text-[11px]">
             <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-indigo-400" /> {user.location}</span>
-            <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5 text-indigo-400" /> <a href={user.website} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">{user.website}</a></span>
+            <span className="flex items-center gap-1 max-w-full"><Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> <a href={user.website} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline truncate max-w-[200px] sm:max-w-xs">{user.website}</a></span>
             <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-indigo-400" /> Joined {user.joinedDate}</span>
           </div>
 
@@ -106,18 +184,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className={`p-2 rounded-2xl border flex items-center gap-2 ${
+      <div className={`p-2 rounded-2xl border flex items-center gap-2 overflow-x-auto no-scrollbar ${
         isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         {[
           { id: 'posts', label: 'My Posts & Media' },
+          { id: 'saved', label: `Saved Posts 🔖 (${savedPosts.length})` },
           { id: 'achievements', label: 'Badges & Achievements' },
           { id: 'security', label: 'Security & Biometrics' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
               activeTab === tab.id 
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
                 : 'bg-slate-950/40 text-slate-300 hover:bg-slate-800'
@@ -131,16 +210,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {/* Tab Contents */}
       {activeTab === 'posts' && (
         <div className="space-y-4">
-          {userPosts.map((p) => (
-            <div key={p.id} className="p-4 rounded-3xl border border-slate-800 bg-slate-900/80 text-xs space-y-2">
-              <div className="flex items-center justify-between text-slate-400 font-mono text-[10px]">
-                <span>Type: {p.type}</span>
-                <span>{p.createdAt}</span>
-              </div>
-              <p className="text-slate-200">{p.content}</p>
+          {userPosts.length === 0 ? (
+            <div className={`p-8 rounded-3xl border text-center text-xs space-y-2 ${
+              isDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
+            }`}>
+              <p className="font-bold">No posts created yet.</p>
             </div>
-          ))}
+          ) : (
+            (userPosts || [])?.map((p) => (
+              <div key={p.id} className="p-4 rounded-3xl border border-slate-800 bg-slate-900/80 text-xs space-y-2">
+                <div className="flex items-center justify-between text-slate-400 font-mono text-[10px]">
+                  <span>Type: {p.type}</span>
+                  <span>{p.createdAt}</span>
+                </div>
+                <p className="text-slate-200">{p.content}</p>
+              </div>
+            ))
+          )}
         </div>
+      )}
+
+      {/* SAVED POSTS SECTION */}
+      {activeTab === 'saved' && (
+        <SavedPostsManager 
+          posts={posts} 
+          isDarkMode={isDarkMode} 
+          user={user} 
+          onShowToast={onShowToast} 
+        />
       )}
 
       {activeTab === 'achievements' && (
@@ -150,7 +247,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <Award className="w-4 h-4 text-amber-400" /> Platform Badges
             </h3>
             <div className="flex flex-wrap gap-2">
-              {user.badges.map((b, idx) => (
+              {(user?.badges || [])?.map((b, idx) => (
                 <span key={idx} className="px-3 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold">
                   {b}
                 </span>
@@ -163,7 +260,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <Zap className="w-4 h-4 text-indigo-400" /> Verified Achievements
             </h3>
             <div className="space-y-2">
-              {user.achievements.map((a, idx) => (
+              {(user?.achievements || [])?.map((a, idx) => (
                 <div key={idx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-200 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>{a}</span>
@@ -186,7 +283,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <h4 className="font-bold text-slate-200">Two-Factor Authentication (2FA)</h4>
                 <p className="text-[11px] text-slate-400">TOTP Authenticator & SMS Verification</p>
               </div>
-              <input type="checkbox" checked={secState.twoFactorEnabled} onChange={toggle2FA} className="w-4 h-4 accent-indigo-600" />
+              <input type="checkbox" checked={!!secState?.twoFactorEnabled} onChange={toggle2FA} className="w-4 h-4 accent-indigo-600" />
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
@@ -194,7 +291,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <h4 className="font-bold text-slate-200">Passkeys (WebAuthn / Touch ID / Face ID)</h4>
                 <p className="text-[11px] text-slate-400">Passwordless cryptographic biometric key</p>
               </div>
-              <input type="checkbox" checked={secState.passkeyActive} onChange={togglePasskey} className="w-4 h-4 accent-indigo-600" />
+              <input type="checkbox" checked={!!secState?.passkeyActive} onChange={togglePasskey} className="w-4 h-4 accent-indigo-600" />
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
@@ -202,7 +299,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <h4 className="font-bold text-slate-200">Biometric Login Prompts</h4>
                 <p className="text-[11px] text-slate-400">Require fingerprint or facial scan on app startup</p>
               </div>
-              <input type="checkbox" checked={secState.biometricEnabled} onChange={toggleBio} className="w-4 h-4 accent-indigo-600" />
+              <input type="checkbox" checked={!!secState?.biometricEnabled} onChange={toggleBio} className="w-4 h-4 accent-indigo-600" />
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   MessageCircle, 
   Send, 
@@ -21,7 +21,11 @@ import {
   X,
   Code,
   Smile,
-  Hash
+  Hash,
+  ArrowLeft,
+  Play,
+  Pause,
+  Image as ImageIcon
 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types';
 import { FormattedText } from './FormattedText';
@@ -134,6 +138,10 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const [voiceSeconds, setVoiceSeconds] = useState(0);
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null);
+  const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
+
+  // Auto-scroll ref
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Group Creation Modal State
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
@@ -141,6 +149,14 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>(['Elena Rostova', 'Kai Takahashi']);
 
   const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping, activeThreadId]);
 
   // Notify parent of total unread count changes
   React.useEffect(() => {
@@ -151,6 +167,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const handleSelectThread = (id: string) => {
     triggerHaptic('selection');
     setActiveThreadId(id);
+    setShowMobileChat(true);
     // Mark as read when selected
     setThreads(prev => prev.map(t => t.id === id ? { ...t, unread: 0 } : t));
   };
@@ -400,6 +417,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         
         {/* Left Sidebar Conversations List */}
         <div className={`md:col-span-4 border-r flex flex-col ${
+          showMobileChat ? 'hidden md:flex' : 'flex'
+        } ${
           isDarkMode ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-slate-50/80'
         }`}>
           {/* Search Contacts & New Group */}
@@ -462,7 +481,13 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                     }`}
                   >
                     <div className="relative shrink-0">
-                      <img src={thread.avatar} alt={thread.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
+                      <img 
+                        src={thread.avatar} 
+                        alt={thread.name} 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" 
+                      />
                       {thread.online && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-950"></span>
                       )}
@@ -478,11 +503,13 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                           {thread.time}
                         </span>
                       </div>
-                      <div className={`text-xs truncate flex items-center gap-1 ${isActive ? 'text-indigo-100' : 'text-slate-800 dark:text-slate-400 font-medium'}`}>
+                      <div className={`text-xs truncate flex items-center gap-1 min-w-0 ${isActive ? 'text-indigo-100' : 'text-slate-800 dark:text-slate-400 font-medium'}`}>
                         {thread.unread === 0 && (
-                          <CheckCheck className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-cyan-200' : 'text-cyan-500 dark:text-cyan-400'}`} title="Message read" />
+                          <span title="Message read">
+                            <CheckCheck className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-cyan-200' : 'text-cyan-500 dark:text-cyan-400'}`} />
+                          </span>
                         )}
-                        <FormattedText text={thread.lastMessage} />
+                        <FormattedText text={thread.lastMessage} inline={true} className="truncate min-w-0 flex-1" />
                       </div>
                     </div>
 
@@ -499,15 +526,30 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         </div>
 
         {/* Right Active Chat Window */}
-        <div className="md:col-span-8 flex flex-col h-full bg-transparent">
+        <div className={`md:col-span-8 flex-col h-full bg-transparent ${
+          showMobileChat ? 'flex' : 'hidden md:flex'
+        }`}>
           
           {/* Active Conversation Header */}
           <div className={`p-3.5 border-b flex items-center justify-between ${
             isDarkMode ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'
           }`}>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowMobileChat(false)}
+                className="md:hidden p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Back to conversations"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
               <div className="relative">
-                <img src={activeThread?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'} alt={activeThread?.name || 'Chat'} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
+                <img 
+                  src={activeThread?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'} 
+                  alt={activeThread?.name || 'Chat'} 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" 
+                />
                 {activeThread?.online && (
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-950"></span>
                 )}
@@ -570,7 +612,13 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
               return (
                 <div key={m.id} className={`flex gap-2.5 group relative ${isMe ? 'flex-row-reverse' : ''}`}>
-                  <img src={m.senderAvatar} alt={m.senderName} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
+                  <img 
+                    src={m.senderAvatar} 
+                    alt={m.senderName} 
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                    className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" 
+                  />
                   
                   <div className="flex flex-col space-y-1 max-w-[80%] sm:max-w-[75%]">
                     {/* Hover Emoji Reaction Bar */}
@@ -648,6 +696,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 <img 
                   src={activeThread.avatar} 
                   alt={activeThread.name} 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
                   className="w-7 h-7 rounded-full object-cover shrink-0 ring-2 ring-indigo-500/40" 
                 />
                 <div className="px-4 py-2.5 rounded-2xl rounded-tl-none bg-slate-900 border border-indigo-500/30 text-indigo-300 text-xs flex items-center gap-2 shadow-md">
@@ -660,6 +710,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Chat Input Bar */}
@@ -789,7 +840,13 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <img src={contact.avatar} alt={contact.name} className="w-7 h-7 rounded-full object-cover" />
+                          <img 
+                            src={contact.avatar} 
+                            alt={contact.name} 
+                            referrerPolicy="no-referrer"
+                            onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                            className="w-7 h-7 rounded-full object-cover" 
+                          />
                           <div>
                             <span className="font-bold block">{contact.name}</span>
                             <span className="text-[10px] text-slate-400 font-mono">@{contact.username}</span>
@@ -819,7 +876,13 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-900 p-6 text-center text-white space-y-5 shadow-2xl">
             <div className="relative w-24 h-24 rounded-full bg-emerald-600/30 mx-auto flex items-center justify-center border-2 border-emerald-400 animate-pulse">
-              <img src={activeThread.avatar} alt={activeThread.name} className="w-20 h-20 rounded-full object-cover" />
+              <img 
+                src={activeThread.avatar} 
+                alt={activeThread.name} 
+                referrerPolicy="no-referrer"
+                onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300"; }}
+                className="w-20 h-20 rounded-full object-cover" 
+              />
             </div>
             <div>
               <h3 className="font-heading font-extrabold text-xl">

@@ -1,14 +1,10 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "public", "uploads");
@@ -18,7 +14,9 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Candidate models list using official Google GenAI SDK model names
 const GEMINI_MODELS = [
-  "gemini-3.6-flash"
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-1.5-flash"
 ];
 
 // Contextual Intelligent Fallback Generator when API key permissions are restricted (403 PERMISSION_DENIED)
@@ -372,11 +370,11 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     try {
       const { mediaType = "image", prompt } = req.body;
       const analysisPrompt = `Analyze this ${mediaType} for MuniSocial content moderation & engagement insights: ${prompt || 'Identify key objects, aesthetics, and viral potential.'}`;
-      const analysis = await generateAI(analysisPrompt, "You are MuniAI's Multimodal Vision Engine powered by Gemini 3.6 Flash.");
+      const analysis = await generateAI(analysisPrompt, "You are MuniAI's Multimodal Vision Engine powered by Gemini 2.5 Flash.");
       
       res.json({
         mediaType,
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         analysis,
         aestheticScore: "94/100",
         viralPotential: "High Engagement"
@@ -386,15 +384,15 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI Audio Transcription (Gemini 3.6 Flash)
+  // AI Audio Transcription (Gemini 2.5 Flash)
   app.post("/api/ai/transcribe-audio", async (req, res) => {
     try {
       const transcript = await generateAI(
         "Transcribe this audio recording clearly into text with speaker tags if applicable.", 
-        "You are MuniAI's Speech Transcription Engine powered by Gemini 3.6 Flash."
+        "You are MuniAI's Speech Transcription Engine powered by Gemini 2.5 Flash."
       );
       res.json({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         transcript: transcript || "Audio transcript successfully processed: 'Hello MuniSocial community! Excited for the new AI features.'"
       });
     } catch (err: any) {
@@ -402,7 +400,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
     }
   });
 
-  // AI High Thinking Mode (Gemini 3.6 Flash)
+  // AI High Thinking Mode (Gemini 2.5 Flash)
   app.post("/api/ai/deep-think", async (req, res) => {
     try {
       const { query } = req.body;
@@ -415,7 +413,7 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
             httpOptions: { headers: { "User-Agent": "aistudio-build" } }
           });
           const response = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
+            model: "gemini-2.5-flash",
             contents: query || "Deep analysis request",
           });
           if (response?.text) {
@@ -428,11 +426,11 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
 
       const deepResponse = await generateAI(
         `[High Thinking Mode Activated]\nAnalyze comprehensively: ${query}`,
-        "You are MuniAI's High Reasoning Engine powered by Gemini 3.6 Flash."
+        "You are MuniAI's High Reasoning Engine powered by Gemini 2.5 Flash."
       );
 
       res.json({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         thinkingLevel: "HIGH",
         thoughtProcess: "Evaluated architecture, security protocols, edge network performance, and user impact.",
         response: deepResponse
@@ -720,8 +718,12 @@ Output as JSON format array of 3 strings: ["reply1", "reply2", "reply3"]`;
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
+    const isHmrDisabled = process.env.DISABLE_HMR === "true" || process.env.DISABLE_HMR === "1" || process.env.DISABLE_HMR !== undefined;
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: isHmrDisabled ? false : undefined,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

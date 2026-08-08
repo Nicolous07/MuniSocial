@@ -39,8 +39,35 @@ interface FloatingParticle {
   rotation: number; // -30 to 30 deg
 }
 
-const EMOJI_REACTIONS = ['🔥', '❤️', '😂', '😮', '👏', '💯', '🎉', '⚡'];
+const PRIMARY_EMOJI_REACTIONS = ['🔥', '❤️', '😂', '😮', '👏', '💯', '🎉', '⚡'];
+const EXPANDED_EMOJI_REACTIONS = ['🚀', '🌟', '👑', '😍', '🥳', '💡', '💎', '🙌', '🎯', '✨', '🌈', '🤩', '🏆', '🍕', '🎮', '🦄'];
+const EMOJI_REACTIONS = [...PRIMARY_EMOJI_REACTIONS, ...EXPANDED_EMOJI_REACTIONS];
 const STORY_DURATION_MS = 5000; // 5 seconds per story
+
+const playReactionChime = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.22);
+  } catch {
+    // Audio autoplay restrictions handled gracefully
+  }
+};
 
 // Mock recent contacts for internal message sharing
 const MOCK_CONTACTS = [
@@ -91,9 +118,15 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   // Message Reply State
   const [replyText, setReplyText] = useState('');
   
-  // Reaction particles state
+  // Reaction particles state & count tracking
   const [particles, setParticles] = useState<FloatingParticle[]>([]);
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>({});
+  const [showExpandedPicker, setShowExpandedPicker] = useState<boolean>(false);
+  const [storyReactionCounts, setStoryReactionCounts] = useState<Record<string, Record<string, number>>>({
+    'story_1': { '🔥': 18, '❤️': 32, '👏': 12, '⚡': 7 },
+    'story_2': { '🔥': 24, '🎉': 15, '💯': 9 },
+    'story_3': { '❤️': 45, '🚀': 19, '🌟': 11 }
+  });
 
   // Double tap heart animation
   const [showBigHeart, setShowBigHeart] = useState(false);
@@ -193,18 +226,36 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
   const triggerEmojiReaction = (emoji: string) => {
     triggerHaptic('reaction');
+    playReactionChime();
+
+    // Create energetic multi-particle explosion
     const newParticles: FloatingParticle[] = [];
-    for (let i = 0; i < 7; i++) {
+    const numParticles = 10;
+    for (let i = 0; i < numParticles; i++) {
       newParticles.push({
         id: `p_${Date.now()}_${Math.random()}`,
         emoji,
-        x: 15 + Math.random() * 70,
-        scale: 0.8 + Math.random() * 0.7,
-        rotation: -25 + Math.random() * 50
+        x: 10 + Math.random() * 80,
+        scale: 0.7 + Math.random() * 0.9,
+        rotation: -30 + Math.random() * 60
       });
     }
 
     setParticles(prev => [...prev, ...newParticles]);
+
+    // Update story reaction count state
+    if (activeStory?.id) {
+      setStoryReactionCounts(prev => {
+        const storyCounts = prev[activeStory.id] || {};
+        return {
+          ...prev,
+          [activeStory.id]: {
+            ...storyCounts,
+            [emoji]: (storyCounts[emoji] || 0) + 1
+          }
+        };
+      });
+    }
 
     if (onSendDirectMessage) {
       onSendDirectMessage(
@@ -221,7 +272,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
     setTimeout(() => {
       setParticles(prev => prev.filter(p => !newParticles.some(np => np.id === p.id)));
-    }, 1200);
+    }, 1400);
   };
 
   const handleSendReply = (e?: React.FormEvent) => {
@@ -516,7 +567,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           {particles.map((p) => (
             <div
               key={p.id}
-              className="absolute bottom-20 pointer-events-none animate-float-up text-3xl sm:text-4xl drop-shadow-lg"
+              className="absolute bottom-20 pointer-events-none animate-float-up text-3xl sm:text-4xl drop-shadow-lg z-30"
               style={{
                 left: `${p.x}%`,
                 transform: `scale(${p.scale}) rotate(${p.rotation}deg)`,
@@ -525,6 +576,25 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
               {p.emoji}
             </div>
           ))}
+
+          {/* Live Story Reaction Pill Badges Overlay */}
+          {activeStory?.id && storyReactionCounts[activeStory.id] && (
+            <div className="absolute top-16 left-3 z-30 flex items-center gap-1.5 flex-wrap max-w-[80%] pointer-events-none">
+              {Object.entries(storyReactionCounts[activeStory.id]).map(([emoji, count]) => {
+                const numCount = Number(count) || 0;
+                if (numCount <= 0) return null;
+                return (
+                  <span 
+                    key={emoji}
+                    className="px-2 py-0.5 rounded-full bg-slate-950/80 border border-indigo-500/30 backdrop-blur-md text-white text-[11px] font-bold flex items-center gap-1 shadow-lg animate-in zoom-in duration-150"
+                  >
+                    <span className="text-xs">{emoji}</span>
+                    <span className="text-indigo-300 font-mono text-[10px]">{numCount}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
           {/* Story Caption Overlay - HIDDEN ON LONG PRESS */}
           {activeStory.caption && !isLongPressing && (
@@ -601,19 +671,80 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           ) : (
             <>
               {/* QUICK EMOJI REACTION SELECTION STRIP */}
-              <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar py-0.5">
-                {EMOJI_REACTIONS.map((emoji, eIdx) => (
-                  <button
-                    key={eIdx}
-                    type="button"
-                    onClick={() => triggerEmojiReaction(emoji)}
-                    className="px-2 py-1 rounded-xl bg-slate-900/90 hover:bg-indigo-600/30 border border-slate-800 hover:border-indigo-500/50 text-base hover:scale-125 transition-all active:scale-90 shadow-xs"
-                    title={`React ${emoji}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between gap-1 py-1 px-1 bg-slate-900/60 rounded-2xl border border-slate-800/80 backdrop-blur-md">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 py-0.5">
+                  {PRIMARY_EMOJI_REACTIONS.map((emoji, eIdx) => {
+                    const currentCount = (activeStory?.id && storyReactionCounts[activeStory.id]?.[emoji]) || 0;
+                    return (
+                      <button
+                        key={eIdx}
+                        type="button"
+                        onClick={() => triggerEmojiReaction(emoji)}
+                        className="relative group px-2 py-1 rounded-xl bg-slate-900 hover:bg-gradient-to-tr hover:from-indigo-600 hover:to-purple-600 border border-slate-700/60 hover:border-indigo-400 text-lg sm:text-xl transition-all active:scale-90 hover:scale-130 hover:-translate-y-1 shadow-sm flex items-center gap-1 shrink-0"
+                        title={`React ${emoji}`}
+                      >
+                        <span className="group-hover:animate-bounce">{emoji}</span>
+                        {currentCount > 0 && (
+                          <span className="text-[9px] font-mono font-bold text-indigo-300 group-hover:text-white">
+                            {currentCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Expand More Emojis Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExpandedPicker(!showExpandedPicker);
+                    triggerHaptic('selection');
+                  }}
+                  className={`p-1.5 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+                    showExpandedPicker 
+                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-400/50' 
+                      : 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-indigo-300 hover:text-white'
+                  }`}
+                  title="More Reactions"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 text-pink-400 ${showExpandedPicker ? 'animate-spin' : ''}`} />
+                  <span className="text-[10px] hidden sm:inline">More</span>
+                </button>
               </div>
+
+              {/* EXPANDED INTERACTIVE EMOJI PICKER POPUP */}
+              {showExpandedPicker && (
+                <div className="p-3 bg-slate-900/95 border border-indigo-500/40 rounded-2xl backdrop-blur-2xl shadow-2xl space-y-2 animate-in slide-in-from-bottom duration-200">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-indigo-300 border-b border-slate-800 pb-1.5">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>Animated Reactions</span>
+                    </span>
+                    <button 
+                      onClick={() => setShowExpandedPicker(false)}
+                      className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded-md hover:bg-slate-800"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {EXPANDED_EMOJI_REACTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => {
+                          triggerEmojiReaction(emoji);
+                        }}
+                        className="p-2 rounded-xl bg-slate-950/80 hover:bg-indigo-600 border border-slate-800 hover:border-indigo-400 text-xl hover:scale-135 transition-all active:scale-90 flex items-center justify-center shadow-md"
+                        title={`React ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* SEND MESSAGE INPUT FORM DIRECTLY AT THE BOTTOM */}
               <form onSubmit={handleSendReply} className="flex items-center gap-2">

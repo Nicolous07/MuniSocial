@@ -21,12 +21,12 @@ interface ThreadsViewProps {
 }
 
 export const ThreadsView: React.FC<ThreadsViewProps> = ({
-  posts,
+  posts = [],
   user,
   isDarkMode,
   onOpenCreate
 }) => {
-  const threadPosts = posts.filter(p => p.type === 'thread' || p.threadSequence || p.type === 'text');
+  const threadPosts = (posts || []).filter(p => p && (p.type === 'thread' || p.threadSequence || p.type === 'text'));
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [threadReplyInput, setThreadReplyInput] = useState('');
 
@@ -56,33 +56,33 @@ export const ThreadsView: React.FC<ThreadsViewProps> = ({
 
       {/* Thread Stream */}
       <div className="space-y-4">
-        {threadPosts.map((post) => (
+        {(threadPosts || [])?.map((post) => (
           <article
             key={post.id}
-            className={`p-5 rounded-3xl border transition-all ${
+            className={`p-5 rounded-3xl border transition-all overflow-hidden ${
               isDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
             {/* Author */}
             <div className="flex items-center gap-3 mb-3">
-              <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30" />
-              <div>
+              <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0" />
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 font-bold text-sm">
-                  <span>{post.author.name}</span>
-                  {post.author.verified && <ShieldCheck className="w-4 h-4 text-indigo-400" />}
+                  <span className="truncate">{post.author.name}</span>
+                  {post.author.verified && <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />}
                 </div>
-                <span className="text-xs text-slate-400">@{post.author.username} • {post.createdAt}</span>
+                <span className="text-xs text-slate-400 truncate block">@{post.author.username} • {post.createdAt}</span>
               </div>
             </div>
 
             {/* Content */}
-            <p className="text-xs sm:text-sm leading-relaxed mb-3 font-sans">{post.content}</p>
+            <p className="text-xs sm:text-sm leading-relaxed mb-3 font-sans break-words [overflow-wrap:anywhere]">{post.content}</p>
 
             {/* Nested Thread Sequence */}
             {post.threadSequence && (
               <div className="space-y-2 my-3 pl-4 border-l-2 border-indigo-500/50">
-                {post.threadSequence.map((t, idx) => (
-                  <div key={idx} className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-200">
+                {post.threadSequence?.map((t, idx) => (
+                  <div key={idx} className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-200 break-words [overflow-wrap:anywhere]">
                     {t}
                   </div>
                 ))}

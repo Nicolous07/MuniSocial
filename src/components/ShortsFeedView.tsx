@@ -167,7 +167,7 @@ const ReelVideoPlayer: React.FC<{
 };
 
 export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
-  posts,
+  posts = [],
   user,
   isDarkMode,
   onShowToast,
@@ -175,15 +175,16 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
 }) => {
   // Extract posts suited for short reels or generate enhanced short posts if needed
   const shortPosts = useMemo(() => {
-    const filtered = posts.filter(
-      p => p.type === 'short_video' || p.videoDetails?.aspectRatio === '9:16' || (p.mediaUrls && p.mediaUrls.length > 0)
+    const safePosts = posts || [];
+    const filtered = safePosts.filter(
+      p => p && (p.type === 'short_video' || p.videoDetails?.aspectRatio === '9:16' || (p.mediaUrls && p.mediaUrls.length > 0))
     );
     
     // Ensure we have rich reel posts with AI capabilities
     if (filtered.length > 0) return filtered;
 
     // Fallback list enriched
-    return posts;
+    return safePosts;
   }, [posts]);
 
   // Feed Category Filter State
@@ -197,15 +198,15 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
   const [votedPollsMap, setVotedPollsMap] = useState<Record<string, number>>({});
 
   const reelPosts = useMemo(() => {
-    let list = [...shortPosts];
+    let list = [...(shortPosts || [])];
     if (selectedCategory === 'trending') {
-      list.sort((a, b) => (b.videoDetails?.views || b.likesCount) - (a.videoDetails?.views || a.likesCount));
+      list.sort((a, b) => ((b?.videoDetails?.views || b?.likesCount || 0) - (a?.videoDetails?.views || a?.likesCount || 0)));
     } else if (selectedCategory === 'tech' || selectedCategory === 'ai') {
-      list = list.filter(p => p.type === 'code' || p.aiTopic || p.tags.some(t => ['ai', 'code', 'tech', 'dev'].includes(t.toLowerCase())));
+      list = list.filter(p => p && (p.type === 'code' || p.aiTopic || (p.tags || []).some(t => ['ai', 'code', 'tech', 'dev'].includes(t.toLowerCase()))));
     } else if (selectedCategory === 'saved') {
-      list = list.filter(p => bookmarkedMap[p.id]);
+      list = list.filter(p => p && bookmarkedMap[p.id]);
     }
-    return list.length > 0 ? list : shortPosts;
+    return list.length > 0 ? list : (shortPosts || []);
   }, [shortPosts, selectedCategory, bookmarkedMap]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -600,7 +601,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
           className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar select-none"
           style={{ scrollSnapType: 'y mandatory' }}
         >
-          {reelPosts.map((reel, index) => {
+          {(reelPosts || [])?.map((reel, index) => {
             const isLiked = likedMap[reel.id] || reel.isLiked || false;
             const isBookmarked = bookmarkedMap[reel.id] || false;
             const isFollowed = followedMap[reel.author.id] || false;
@@ -624,9 +625,9 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                   onClick={(e) => handleVideoCanvasClick(e, reel.id)}
                 >
                   <ReelVideoPlayer
-                    videoUrl={reel.videoUrl}
-                    mediaUrl={reel.mediaUrl || reel.mediaUrls?.[0]}
-                    poster={reel.thumbnailUrl || reel.mediaUrls?.[0]}
+                    videoUrl={(reel as any).videoUrl}
+                    mediaUrl={(reel as any).mediaUrl || reel.mediaUrls?.[0]}
+                    poster={(reel as any).thumbnailUrl || reel.mediaUrls?.[0]}
                     isActive={index === activeIndex}
                     isPlaying={isPlaying}
                     isMuted={isMuted}
@@ -947,7 +948,7 @@ export const ShortsFeedView: React.FC<ShortsFeedViewProps> = ({
                     </span>
                     <p className="text-xs font-bold">{reel.pollDetails.question}</p>
                     <div className="space-y-1.5">
-                      {reel.pollDetails.options.map((opt, optIdx) => {
+                      {reel.pollDetails.options?.map((opt, optIdx) => {
                         const isVoted = votedPollIdx === optIdx;
                         return (
                           <button

@@ -340,7 +340,8 @@ export default function App() {
     });
   };
 
-  const filteredPosts = posts.filter(p => {
+  const filteredPosts = (posts || []).filter(p => {
+    if (!p) return false;
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -526,6 +527,7 @@ export default function App() {
               posts={posts}
               isDarkMode={isDarkMode}
               onOpenAuth={() => setIsAuthOpen(true)}
+              onShowToast={showToast}
             />
           )}
 
